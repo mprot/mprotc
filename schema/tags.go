@@ -1,0 +1,18 @@
+package schema
+
+// Tags defined the tags for struct fields and union branches.
+type Tags map[string]string
+
+// OmitEmpty returns true, if the omitempty tag is set. Otherwise
+// false will be returned.
+func (t Tags) OmitEmpty() bool {
+	_, has := t["omitempty"]
+	return has
+}
+
+// Deprecated returns true, if the deprecated tag is set. Otherwise
+// false will be returned.
+func (t Tags) Deprecated() bool {
+	_, has := t["deprecated"]
+	return has
+}
