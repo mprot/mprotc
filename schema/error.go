@@ -15,6 +15,10 @@ const (
 	errInvalidBom            = errorString("invalid byte order mark")
 )
 
+type errorReporter interface {
+	errorf(format string, args ...interface{})
+}
+
 type errorString string
 
 func (e errorString) Error() string {

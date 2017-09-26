@@ -14,10 +14,10 @@ type Options struct {
 
 // Generator represents a code generator for the Go programming language.
 type Generator struct {
-	consts constGenerator
-	enum   enumGenerator
-	union  unionGenerator
-	strct  structGenerator
+	cnst  constGenerator
+	enum  enumGenerator
+	strct structGenerator
+	union unionGenerator
 }
 
 // NewGenerator creates a new Go code generator with the given options.
@@ -54,7 +54,7 @@ func (g *Generator) Generate(p *gen.Printer, s *schema.Schema) {
 
 		switch decl := decl.(type) {
 		case *schema.Const:
-			g.consts.Generate(p, decl)
+			g.cnst.Generate(p, decl)
 		case *schema.Enum:
 			g.enum.Generate(p, decl)
 		case *schema.Struct:

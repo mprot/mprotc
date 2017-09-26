@@ -3,6 +3,7 @@ package schema
 // Decl describes an interface for a declaration.
 type Decl interface {
 	Pos() Pos
+	validate(r errorReporter)
 }
 
 // Schema holds all the data for an mpack schema. The order
@@ -12,6 +13,12 @@ type Schema struct {
 	Doc     []string
 	Package string
 	Decls   []Decl
+}
+
+func (s *Schema) validate(r errorReporter) {
+	for _, decl := range s.Decls {
+		decl.validate(r)
+	}
 }
 
 // Const holds the data of an mpack constant.
@@ -24,7 +31,13 @@ type Const struct {
 }
 
 // Pos implements the Decl interface.
-func (c *Const) Pos() Pos { return c.pos }
+func (c *Const) Pos() Pos {
+	return c.pos
+}
+
+func (c *Const) validate(r errorReporter) {
+	// do nothing
+}
 
 // Enumerator holds the data of an enumerator value.
 type Enumerator struct {
@@ -42,8 +55,23 @@ type Enum struct {
 }
 
 // Pos implements the Decl interface.
-func (e *Enum) Pos() Pos       { return e.pos }
-func (e *Enum) typeid() string { return e.Name }
+func (e *Enum) Pos() Pos {
+	return e.pos
+}
+
+func (e *Enum) validate(r errorReporter) {
+	enumerators := make(map[string]struct{})
+	for _, en := range e.Enumerators {
+		if _, has := enumerators[en.Name]; has {
+			r.errorf("duplicate enumerator %s in enum %s", en.Name, e.Name)
+		}
+		enumerators[en.Name] = struct{}{}
+	}
+}
+
+func (e *Enum) typeid() string {
+	return e.Name
+}
 
 // Field holds the data of a struct field.
 type Field struct {
@@ -62,8 +90,28 @@ type Struct struct {
 }
 
 // Pos implements the Decl interface.
-func (s *Struct) Pos() Pos       { return s.pos }
-func (s *Struct) typeid() string { return s.Name }
+func (s *Struct) Pos() Pos {
+	return s.pos
+}
+
+func (s *Struct) validate(r errorReporter) {
+	fields := make(map[string]struct{})
+	ordinals := make(map[int64]struct{})
+	for _, f := range s.Fields {
+		if _, has := fields[f.Name]; has {
+			r.errorf("duplicate field %s in struct %s", f.Name, s.Name)
+		} else if _, has := ordinals[f.Ordinal]; has && f.Ordinal != 0 {
+			r.errorf("duplicate ordinal %d for field %s in struct %s", f.Ordinal, f.Name, s.Name)
+		}
+
+		fields[f.Name] = struct{}{}
+		ordinals[f.Ordinal] = struct{}{}
+	}
+}
+
+func (s *Struct) typeid() string {
+	return s.Name
+}
 
 // Branch holds the data for a union branch.
 type Branch struct {
@@ -81,5 +129,64 @@ type Union struct {
 }
 
 // Pos implements the Decl interface.
-func (u *Union) Pos() Pos       { return u.pos }
-func (u *Union) typeid() string { return u.Name }
+func (u *Union) Pos() Pos {
+	return u.pos
+}
+
+func (u *Union) validate(r errorReporter) {
+	if len(u.Branches) == 0 {
+		r.errorf("union %s does not contain a branch", u.Name)
+		return
+	}
+
+	branches := make(map[string]struct{})
+	ordinals := make(map[int64]struct{})
+	hasNumericBranch := false
+	for _, b := range u.Branches {
+		typeid := b.Type.typeid()
+		switch typ := b.Type.(type) {
+		case *Pointer:
+			r.errorf("pointer branch %s in union %s", typ.Name(), u.Name)
+		case *Int:
+			if hasNumericBranch {
+				r.errorf("duplicate numeric branch %s in union %s", typ.Name(), u.Name)
+			}
+			hasNumericBranch = true
+		case *Float:
+			if hasNumericBranch {
+				r.errorf("duplicate numeric branch %s in union %s", typ.Name(), u.Name)
+			}
+			hasNumericBranch = true
+		case *DefinedType:
+			if _, has := branches[typeid]; has {
+				r.errorf("duplicate branch %s in union %s", typeid, u.Name)
+			} else {
+				switch typ.Decl.(type) {
+				case *Enum:
+					if hasNumericBranch {
+						r.errorf("duplicate numeric branch %s in union %s", typ.Name(), u.Name)
+					}
+					hasNumericBranch = true
+				case *Union:
+					r.errorf("union branch %s in union %s", typ.Name(), u.Name)
+					continue
+				}
+			}
+		default:
+			if _, has := branches[typeid]; has {
+				r.errorf("duplicate branch %s in union %s (only one %s branch is allowed)", typ.Name(), u.Name, typeid)
+			}
+		}
+
+		if _, has := ordinals[b.Ordinal]; has && b.Ordinal != 0 {
+			r.errorf("duplicate ordinal %d for branch %s in union %s", b.Ordinal, b.Type.Name(), u.Name)
+		}
+
+		branches[typeid] = struct{}{}
+		ordinals[b.Ordinal] = struct{}{}
+	}
+}
+
+func (u *Union) typeid() string {
+	return u.Name
+}

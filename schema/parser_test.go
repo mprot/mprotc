@@ -216,6 +216,8 @@ func TestParseWithError(t *testing.T) {
 		E1 "2"                                 // duplicate enumerator
 	}
 
+	enum F {}
+
 	union U {
 		*E           "1"                       // pointer type
 		E            "2"
@@ -226,12 +228,20 @@ func TestParseWithError(t *testing.T) {
 		[]T          "6"                       // duplicate branch (array)
 		map[string]E "7"
 		map[int]T    "8"                       // duplicate branch (map)
+		int64        "9"                       // duplicate numeric branch
+		float32      "10"                      // duplicate numeric branch
+		F            "11"                      // duplicate numeric branch
 	}
 
 	union V {}                                 // no branches
+
+	union W {
+		U "1"                                  // union branch
+	}
 	`
 
 	expectedErrors := [...]string{
+		// parse errors
 		`unexpected token "*"`,
 		`unexpected token "abc" in constant declaration`,
 		`unexpected identifier "strut"`,
@@ -246,19 +256,24 @@ func TestParseWithError(t *testing.T) {
 		`invalid array size 0`,
 		`invalid array size -2`,
 		`unexpected token "{"`,
-		`duplicate field K in struct T`,
-		`duplicate ordinal 10 for field L in struct T`,
 		`type T redeclared (see position 7:2)`,
-		`duplicate enumerator E1 in enum E`,
-		`pointer types are not supported as a union branch`,
-		`duplicate branch E in union U`,
-		`duplicate ordinal 3 for branch T in union U`,
-		`duplicate branch []T in union U (only one array type is allowed)`,
-		`duplicate branch map[int]T in union U (only one map type is allowed)`,
-		`union V has to contain at least one branch`,
-		// resolving is the last step
+		// resolve errors
 		`undefined type X`,
 		`undefined type Y`,
+		// type validation errors
+		`duplicate field K in struct T`,
+		`duplicate ordinal 10 for field L in struct T`,
+		`duplicate enumerator E1 in enum E`,
+		`pointer branch *E in union U`,
+		`duplicate branch E in union U`,
+		`duplicate ordinal 3 for branch T in union U`,
+		`duplicate branch []T in union U (only one array branch is allowed)`,
+		`duplicate branch map[int]T in union U (only one map branch is allowed)`,
+		`duplicate numeric branch int64 in union U`,
+		`duplicate numeric branch float32 in union U`,
+		`duplicate numeric branch F in union U`,
+		`union V does not contain a branch`,
+		`union branch U in union W`,
 	}
 
 	_, err := Parse(strings.NewReader(input))

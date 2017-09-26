@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -52,6 +51,7 @@ func (p *parser) Parse(r io.Reader, filename string) (*Schema, error) {
 		}
 	}
 
+	s.validate(p)
 	return s, p.errs.err()
 }
 
@@ -120,24 +120,18 @@ func (p *parser) parseEnum() *Enum {
 	e.Name = p.parseIdent()
 	p.expect(lbrace)
 
-	names := make(map[string]struct{})
 	for p.tok == ident {
 		name := p.parseIdent()
 		value, tags := p.parseTagString(true)
 		p.expect(semicol)
 
-		if name == "" {
-			continue
-		} else if _, has := names[name]; has {
-			p.errorf("duplicate enumerator %s in enum %s", name, e.Name)
+		if name != "" {
+			e.Enumerators = append(e.Enumerators, Enumerator{
+				Name:  name,
+				Value: value,
+				Tags:  tags,
+			})
 		}
-
-		e.Enumerators = append(e.Enumerators, Enumerator{
-			Name:  name,
-			Value: value,
-			Tags:  tags,
-		})
-		names[name] = struct{}{}
 	}
 
 	p.expect(rbrace)
@@ -154,30 +148,20 @@ func (p *parser) parseStruct() *Struct {
 	s.Name = p.parseIdent()
 	p.expect(lbrace)
 
-	names := make(map[string]struct{})
-	ordinals := make(map[int64]struct{})
 	for p.tok != rbrace {
 		name := p.parseIdent()
 		typ := p.parseType()
 		ordinal, tags := p.parseTagString(false)
 		p.expect(semicol)
 
-		if name == "" {
-			continue
-		} else if _, has := names[name]; has {
-			p.errorf("duplicate field %s in struct %s", name, s.Name)
-		} else if _, has := ordinals[ordinal]; has && ordinal != 0 {
-			p.errorf("duplicate ordinal %d for field %s in struct %s", ordinal, name, s.Name)
+		if name != "" {
+			s.Fields = append(s.Fields, Field{
+				Name:    name,
+				Type:    typ,
+				Ordinal: ordinal,
+				Tags:    tags,
+			})
 		}
-
-		s.Fields = append(s.Fields, Field{
-			Name:    name,
-			Type:    typ,
-			Ordinal: ordinal,
-			Tags:    tags,
-		})
-		names[name] = struct{}{}
-		ordinals[ordinal] = struct{}{}
 	}
 
 	p.expect(rbrace)
@@ -194,49 +178,22 @@ func (p *parser) parseUnion() *Union {
 	u.Name = p.parseIdent()
 	p.expect(lbrace)
 
-	names := make(map[string]struct{})
-	ordinals := make(map[int64]struct{})
 	for p.tok != rbrace {
 		typ := p.parseType()
 		ordinal, tags := p.parseTagString(false)
 		p.expect(semicol)
 
-		switch typ.(type) {
-		case nil:
-			continue
-		case *Pointer:
-			p.errorf("pointer types are not supported as a union branch")
-		case *DefinedType:
-			typeid := typ.typeid()
-			if _, has := names[typeid]; has {
-				p.errorf("duplicate branch %s in union %s", typeid, u.Name)
-			}
-		default:
-			typeid := typ.typeid()
-			if _, has := names[typeid]; has {
-				p.errorf("duplicate branch %s in union %s (only one %s type is allowed)", typ.Name(), u.Name, typeid)
-			}
+		if typ != nil {
+			u.Branches = append(u.Branches, Branch{
+				Type:    typ,
+				Ordinal: ordinal,
+				Tags:    tags,
+			})
 		}
-
-		if _, has := ordinals[ordinal]; has && ordinal != 0 {
-			p.errorf("duplicate ordinal %d for branch %s in union %s", ordinal, typ.Name(), u.Name)
-		}
-
-		u.Branches = append(u.Branches, Branch{
-			Type:    typ,
-			Ordinal: ordinal,
-			Tags:    tags,
-		})
-		names[typ.typeid()] = struct{}{}
-		ordinals[ordinal] = struct{}{}
 	}
 
 	p.expect(rbrace)
 	p.expect(semicol)
-
-	if len(u.Branches) == 0 {
-		p.errorf("union %s has to contain at least one branch", u.Name)
-	}
 
 	p.register(u.Name, u)
 	return u
@@ -455,8 +412,7 @@ func (p *parser) scanError() {
 }
 
 func (p *parser) errorf(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	p.errs.add(errorString(msg), p.pos)
+	p.errs.add(errorf(format, args...), p.pos)
 }
 
 func (p *parser) next() {

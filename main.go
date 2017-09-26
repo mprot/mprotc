@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/tsne/mpackc/gen/golang"
+	"github.com/tsne/mpackc/gen/js"
 	"github.com/tsne/mpackc/opts"
 )
 
@@ -18,6 +19,11 @@ var cli = commands{
 			return golang.NewGenerator(golang.Options{
 				ScopedEnums: opts.Bool("scoped-enums"),
 			})
+		},
+	},
+	"js": command{
+		generator: func(opts *opts.Opts) generator {
+			return js.NewGenerator()
 		},
 	},
 }

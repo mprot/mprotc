@@ -152,7 +152,7 @@ func (t *tokenizer) Next() (token, string, Pos) {
 		case '*':
 			return t.scanBlockComment()
 		default:
-			return t.invalidToken(errorf("invalid token '/'"), false)
+			return t.invalidToken(errorString("invalid token '/'"), false)
 		}
 	default:
 		implicitSemi = t.implicitSemi // preserve flag on invalid tokens
