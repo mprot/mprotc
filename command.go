@@ -3,9 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/tsne/mpackc/gen"
@@ -15,16 +13,12 @@ import (
 
 const binName = "mpackc"
 
-type generator interface {
-	Generate(p *gen.Printer, s *schema.Schema)
-}
-
 type command struct {
 	options   func(opts *opts.Opts)
 	generator func(opts *opts.Opts) generator
 }
 
-func (c *command) generate(opts *opts.Opts, language string, inputFiles []string) error {
+func (c *command) exec(opts *opts.Opts, language string, inputFiles []string) error {
 	schemas := make([]*schema.Schema, len(inputFiles))
 	for i, inputFile := range inputFiles {
 		var err error
@@ -34,36 +28,18 @@ func (c *command) generate(opts *opts.Opts, language string, inputFiles []string
 	}
 
 	p := &gen.Printer{}
-	gen := c.generator(opts)
-	ext := "." + language
-	if g, ok := gen.(interface {
-		FileExt() string
-	}); ok {
-		ext = g.FileExt()
-	}
+	gen := newCodeGenerator(c.generator(opts), generatorOptions{
+		language:   language,
+		outputPath: opts.String("out"),
+		deprecated: opts.Bool("deprecated"),
+	})
 
-	out := opts.String("out")
 	for i, schema := range schemas {
-		gen.Generate(p, schema)
-
-		filename := strings.TrimSuffix(filepath.Base(inputFiles[i]), filepath.Ext(inputFiles[i]))
-		path := filepath.Join(out, filename+ext)
-		if err := c.write(schema, path, p); err != nil {
+		if err := gen.Generate(p, schema, inputFiles[i]); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func (c *command) write(schema *schema.Schema, filename string, source io.WriterTo) error {
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = source.WriteTo(f)
-	return err
 }
 
 func (c *command) registerOpts(opts *opts.Opts) {
@@ -77,6 +53,7 @@ type commands map[string]command // language => command
 func (c commands) Exec(language string, args []string) error {
 	opts := opts.New()
 	opts.AddString("--out <path>", ".", "Specify the output path for the generated code.")
+	opts.AddBool("--deprecated", false, "Include deprecated fields in the generated code.")
 
 	cmd, has := c[language]
 	if !has {
@@ -109,7 +86,7 @@ func (c commands) Exec(language string, args []string) error {
 		return err
 	}
 
-	return cmd.generate(opts, language, fset.Args())
+	return cmd.exec(opts, language, fset.Args())
 }
 
 func (c commands) printHelp(language string, opts *opts.Opts) {

@@ -21,9 +21,8 @@ enum E {
 }
 
 struct S {
-	Foo int         `1`
-	Bar string      `2 omitempty`  // not written to the stream, if empty
-	NotUsed float32 `3 deprecated` // will not be compiled
+	Foo int     `1`
+	Bar float32 `2 deprecated` // will not be compiled
 }
 
 union {

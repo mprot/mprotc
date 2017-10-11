@@ -31,12 +31,8 @@ func (g *structGenerator) printDecl(p *gen.Printer, name string, fields []schema
 	for _, f := range fields {
 		fname := gen.RPad(f.Name, maxNameLen)
 		ftype := gen.RPad(typename(f.Type), maxTypeLen)
-		json := gen.SnakeCase(f.Name)
-		if f.Tags.OmitEmpty() {
-			json += ",omitempty"
-		}
 
-		p.Println(`	`, fname, ` `, ftype, " `json:\"", json, "\"`")
+		p.Println(`	`, fname, ` `, ftype)
 	}
 	p.Println(`}`)
 }
@@ -48,24 +44,11 @@ func (g *structGenerator) printEncodeFunc(p *gen.Printer, name string, fields []
 	p.Println(`		return err`)
 	p.Println(`	}`)
 	for _, f := range fields {
-		notEmpty := notEmptyCheck(f.Type, "o."+f.Name)
-		omitEmpty := notEmpty != "" && f.Tags.OmitEmpty()
-
 		p.Println(`	// `, f.Name)
 		p.Println(`	if err = w.WriteInt64(`, f.Ordinal, `); err != nil {`)
 		p.Println(`		return err`)
 		p.Println(`	}`)
-		if omitEmpty {
-			p.Println(`	if `, notEmpty, ` {`)
-			printEncodeCall(p, f.Type, "o."+f.Name, "\t\t")
-			p.Println(`	} else {`)
-			p.Println(`		if err = w.WriteNil(); err != nil {`)
-			p.Println(`			return err`)
-			p.Println(`		}`)
-			p.Println(`	}`)
-		} else {
-			printEncodeCall(p, f.Type, "o."+f.Name, "\t")
-		}
+		printEncodeCall(p, f.Type, "o."+f.Name, "\t")
 	}
 	p.Println(`	return nil`)
 	p.Println(`}`)
@@ -96,29 +79,4 @@ func (g *structGenerator) printDecodeFunc(p *gen.Printer, name string, fields []
 	p.Println(`	}`)
 	p.Println(`	return nil`)
 	p.Println(`}`)
-}
-
-func notEmptyCheck(t schema.Type, specifier string) string {
-	switch t.(type) {
-	case *schema.Bool:
-		return specifier
-	case *schema.Int:
-		return specifier + ` != 0`
-	case *schema.Float:
-		return specifier + ` != 0`
-	case *schema.String:
-		return specifier + ` != ""`
-	case *schema.Bytes:
-		return `len(` + specifier + `) != 0`
-	case *schema.Array:
-		return `len(` + specifier + `) != 0`
-	case *schema.Map:
-		return `len(` + specifier + `) != 0`
-	case *schema.Time:
-		return `!` + specifier + `.IsZero()`
-	case *schema.Pointer:
-		return specifier + ` != nil`
-	default:
-		return ""
-	}
 }
