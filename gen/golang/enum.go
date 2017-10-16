@@ -58,7 +58,7 @@ func (g *enumGenerator) printEncodeFunc(p gen.Printer, name string, intType stri
 
 	p.Println(`// EncodeMsgpack implements the Encoder interface for `, name, `.`)
 	p.Println(`func (o `, name, `) EncodeMsgpack(w *msgpack.Writer) error {`)
-	p.Println(`	return w.`, writeInt, `(int64(o))`)
+	p.Println(`	return w.`, writeInt, `(`, intType, `(o))`)
 	p.Println(`}`)
 }
 

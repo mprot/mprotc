@@ -49,7 +49,7 @@ func (g *Generator) generate(p gen.Printer, s *schema.Schema) {
 	p.Println(`	msgpack "github.com/tsne/msgpack-go"`)
 	p.Println(`)`)
 	p.Println()
-	p.Println(`var _ fmt.Errorf`)
+	p.Println(`var _ = fmt.Errorf`)
 	p.Println(`var _ time.Time`)
 	p.Println(`var _ *msgpack.Writer`)
 
