@@ -6,8 +6,9 @@ import (
 )
 
 type generatorOptions struct {
-	outputPath string
-	deprecated bool
+	outputPath  string
+	deprecated  bool
+	packageName string
 }
 
 type generator interface {
@@ -16,21 +17,26 @@ type generator interface {
 
 type codeGenerator struct {
 	generator
-	outputPath string
-	deprecated bool
+	outputPath  string
+	deprecated  bool
+	packageName string
 }
 
 func newCodeGenerator(g generator, opts generatorOptions) codeGenerator {
 	return codeGenerator{
-		generator:  g,
-		outputPath: opts.outputPath,
-		deprecated: opts.deprecated,
+		generator:   g,
+		outputPath:  opts.outputPath,
+		deprecated:  opts.deprecated,
+		packageName: opts.packageName,
 	}
 }
 
 func (g *codeGenerator) Generate(s *schema.Schema, inputFilename string) error {
 	if !g.deprecated {
 		g.removeDeprecated(s)
+	}
+	if g.packageName != "" {
+		s.Package = g.packageName
 	}
 
 	w := gen.NewFileWriter(g.outputPath, inputFilename)

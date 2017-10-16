@@ -27,8 +27,9 @@ func (c *command) exec(opts *opts.Opts, inputFiles []string) error {
 	}
 
 	gen := newCodeGenerator(c.generator(opts), generatorOptions{
-		outputPath: opts.String("out"),
-		deprecated: opts.Bool("deprecated"),
+		outputPath:  opts.String("out"),
+		deprecated:  opts.Bool("deprecated"),
+		packageName: opts.String("package"),
 	})
 
 	for i, schema := range schemas {
@@ -51,6 +52,7 @@ func (c commands) Exec(language string, args []string) error {
 	opts := opts.New()
 	opts.AddString("--out <path>", ".", "Specify the output path for the generated code.")
 	opts.AddBool("--deprecated", false, "Include deprecated fields in the generated code.")
+	opts.AddString("--package <package name>", "", "Override the schema's package name.")
 
 	cmd, has := c[language]
 	if !has {
