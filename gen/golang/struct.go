@@ -7,7 +7,7 @@ import (
 
 type structGenerator struct{}
 
-func (g *structGenerator) Generate(p *gen.Printer, s *schema.Struct) {
+func (g *structGenerator) Generate(p gen.Printer, s *schema.Struct) {
 	g.printDecl(p, s.Name, s.Fields, s.Doc)
 	p.Println()
 	g.printEncodeFunc(p, s.Name, s.Fields)
@@ -15,7 +15,7 @@ func (g *structGenerator) Generate(p *gen.Printer, s *schema.Struct) {
 	g.printDecodeFunc(p, s.Name, s.Fields)
 }
 
-func (g *structGenerator) printDecl(p *gen.Printer, name string, fields []schema.Field, doc []string) {
+func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.Field, doc []string) {
 	var maxNameLen, maxTypeLen int
 	for _, f := range fields {
 		if len(f.Name) > maxNameLen {
@@ -37,7 +37,7 @@ func (g *structGenerator) printDecl(p *gen.Printer, name string, fields []schema
 	p.Println(`}`)
 }
 
-func (g *structGenerator) printEncodeFunc(p *gen.Printer, name string, fields []schema.Field) {
+func (g *structGenerator) printEncodeFunc(p gen.Printer, name string, fields []schema.Field) {
 	p.Println(`// EncodeMsgpack implements the Encoder interface for `, name, `.`)
 	p.Println(`func (o *`, name, `) EncodeMsgpack(w *msgpack.Writer) (err error) {`)
 	p.Println(`	if err = w.WriteMapHeader(`, len(fields), `); err != nil {`)
@@ -54,7 +54,7 @@ func (g *structGenerator) printEncodeFunc(p *gen.Printer, name string, fields []
 	p.Println(`}`)
 }
 
-func (g *structGenerator) printDecodeFunc(p *gen.Printer, name string, fields []schema.Field) {
+func (g *structGenerator) printDecodeFunc(p gen.Printer, name string, fields []schema.Field) {
 	p.Println(`// DecodeMsgpack implements the Decoder interface for `, name, `.`)
 	p.Println(`func (o *`, name, `) DecodeMsgpack(r *msgpack.Reader) error {`)
 	p.Println(`	n, err := r.ReadMapHeader()`)

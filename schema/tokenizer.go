@@ -187,16 +187,16 @@ func (t *tokenizer) scanNumber() (token, string, Pos) {
 				return t.invalidToken(errInvalidHexNumber, false)
 			}
 			return t.token(intlit)
-		} else {
-			t.skipDigits(8)
-			octal := t.skipDigits(10) == 0
-			if t.ch != '.' && t.ch != 'e' && t.ch != 'E' {
-				// oct
-				if !octal {
-					return t.invalidToken(errInvalidOctNumber, false)
-				}
-				return t.token(intlit)
+		}
+
+		t.skipDigits(8)
+		octal := t.skipDigits(10) == 0
+		if t.ch != '.' && t.ch != 'e' && t.ch != 'E' {
+			// oct
+			if !octal {
+				return t.invalidToken(errInvalidOctNumber, false)
 			}
+			return t.token(intlit)
 		}
 	} else {
 		t.skipDigits(10)

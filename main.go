@@ -22,8 +22,14 @@ var cli = commands{
 		},
 	},
 	"js": command{
+		options: func(opts *opts.Opts) {
+			opts.AddBool("--typedecls", false, "Generate type declarations in a separate .d.ts file.")
+		},
+
 		generator: func(opts *opts.Opts) generator {
-			return js.NewGenerator()
+			return js.NewGenerator(js.Options{
+				TypeDecls: opts.Bool("typedecls"),
+			})
 		},
 	},
 }

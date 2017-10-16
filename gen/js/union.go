@@ -10,7 +10,7 @@ import (
 
 type unionGenerator struct{}
 
-func (g *unionGenerator) Generate(p *gen.Printer, u *schema.Union) {
+func (g *unionGenerator) Generate(p gen.Printer, u *schema.Union) {
 	branches := collectBranches(u)
 
 	printDoc(p, u.Doc, u.Name+" union.")
@@ -21,7 +21,17 @@ func (g *unionGenerator) Generate(p *gen.Printer, u *schema.Union) {
 	p.Println(`};`)
 }
 
-func (g *unionGenerator) printEncodeFunc(p *gen.Printer, branches *branches) {
+func (g *unionGenerator) GenerateTypeDecls(p gen.Printer, u *schema.Union) {
+	types := make([]string, 0, len(u.Branches))
+	for _, b := range u.Branches {
+		types = append(types, typescriptTypename(b.Type))
+	}
+
+	p.Println(`export declare var `, u.Name, `: Type<`, u.Name, `>;`)
+	p.Println(`export type `, u.Name, ` = `, strings.Join(types, " | "))
+}
+
+func (g *unionGenerator) printEncodeFunc(p gen.Printer, branches *branches) {
 	p.Println(`	enc(buf, v) {`)
 	p.Println(`		Arr.encHeader(buf, 2);`)
 	p.Println(`		switch(typeof v) {`)
@@ -68,7 +78,7 @@ func (g *unionGenerator) printEncodeFunc(p *gen.Printer, branches *branches) {
 	p.Println(`	},`)
 }
 
-func (g *unionGenerator) printDecodeFunc(p *gen.Printer, branches *branches) {
+func (g *unionGenerator) printDecodeFunc(p gen.Printer, branches *branches) {
 	p.Println(`	dec(buf) {`)
 	p.Println(`		Arr.decHeader(buf, 2);`)
 	p.Println(`		switch(Int.dec(buf)) {`)
@@ -109,7 +119,7 @@ func collectBranches(u *schema.Union) *branches {
 	for i := 0; i < len(u.Branches); i++ {
 		res.all = append(res.all, branch{
 			Branch:      u.Branches[i],
-			msgpackType: msgpackType(u.Branches[i].Type),
+			msgpackType: msgpackTypename(u.Branches[i].Type),
 		})
 		b := &res.all[i]
 

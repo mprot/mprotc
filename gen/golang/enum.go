@@ -11,7 +11,7 @@ type enumGenerator struct {
 	scoped bool
 }
 
-func (g *enumGenerator) Generate(p *gen.Printer, e *schema.Enum) {
+func (g *enumGenerator) Generate(p gen.Printer, e *schema.Enum) {
 	intType := "int"
 	for _, e := range e.Enumerators {
 		if e.Value < math.MinInt32 || e.Value > math.MaxInt32 {
@@ -27,7 +27,7 @@ func (g *enumGenerator) Generate(p *gen.Printer, e *schema.Enum) {
 	g.printDecodeFunc(p, e.Name, intType)
 }
 
-func (g *enumGenerator) printDecl(p *gen.Printer, name string, enumerators []schema.Enumerator, intType string, doc []string) {
+func (g *enumGenerator) printDecl(p gen.Printer, name string, enumerators []schema.Enumerator, intType string, doc []string) {
 	maxNameLen := 0
 	for _, e := range enumerators {
 		if len(e.Name) > maxNameLen {
@@ -53,7 +53,7 @@ func (g *enumGenerator) printDecl(p *gen.Printer, name string, enumerators []sch
 	}
 }
 
-func (g *enumGenerator) printEncodeFunc(p *gen.Printer, name string, intType string) {
+func (g *enumGenerator) printEncodeFunc(p gen.Printer, name string, intType string) {
 	writeInt := "Write" + gen.TitleFirstWord(intType)
 
 	p.Println(`// EncodeMsgpack implements the Encoder interface for `, name, `.`)
@@ -62,7 +62,7 @@ func (g *enumGenerator) printEncodeFunc(p *gen.Printer, name string, intType str
 	p.Println(`}`)
 }
 
-func (g *enumGenerator) printDecodeFunc(p *gen.Printer, name string, intType string) {
+func (g *enumGenerator) printDecodeFunc(p gen.Printer, name string, intType string) {
 	readInt := "Read" + gen.TitleFirstWord(intType)
 
 	p.Println(`// DecodeMsgpack implements the Decoder interface for `, name, `.`)

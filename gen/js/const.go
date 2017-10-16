@@ -9,7 +9,7 @@ import (
 
 type constGenerator struct{}
 
-func (g *constGenerator) Generate(p *gen.Printer, c *schema.Const) {
+func (g *constGenerator) Generate(p gen.Printer, c *schema.Const) {
 	val := c.Value
 	if _, isStr := c.Type.(*schema.String); isStr {
 		val = strconv.Quote(val)

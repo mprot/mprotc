@@ -20,7 +20,7 @@ func typename(t schema.Type) string {
 	}
 }
 
-func printEncodeCall(p *gen.Printer, t schema.Type, specifier string, indent string) {
+func printEncodeCall(p gen.Printer, t schema.Type, specifier string, indent string) {
 	switch t := t.(type) {
 	case *schema.Pointer:
 		p.Println(indent, `if `, specifier, ` == nil {`)
@@ -61,7 +61,7 @@ func printEncodeCall(p *gen.Printer, t schema.Type, specifier string, indent str
 	}
 }
 
-func printDecodeCall(p *gen.Printer, t schema.Type, specifier string, indent string) {
+func printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent string) {
 	switch t := t.(type) {
 	case *schema.Pointer:
 		p.Println(indent, `if typ, err := r.Peek(); err != nil {`)

@@ -124,6 +124,7 @@ func (m *Map) typeid() string {
 // Time describes a time data type.
 type Time struct{}
 
+// Name implements the Type interface.
 func (t *Time) Name() string {
 	return "time"
 }

@@ -7,7 +7,7 @@ import (
 
 type unionGenerator struct{}
 
-func (g *unionGenerator) Generate(p *gen.Printer, u *schema.Union) {
+func (g *unionGenerator) Generate(p gen.Printer, u *schema.Union) {
 	g.printDecl(p, u.Name, u.Branches, u.Doc)
 	p.Println()
 	g.printEncodeFunc(p, u.Name, u.Branches)
@@ -15,7 +15,7 @@ func (g *unionGenerator) Generate(p *gen.Printer, u *schema.Union) {
 	g.printDecodeFunc(p, u.Name, u.Branches)
 }
 
-func (g *unionGenerator) printDecl(p *gen.Printer, name string, branches []schema.Branch, doc []string) {
+func (g *unionGenerator) printDecl(p gen.Printer, name string, branches []schema.Branch, doc []string) {
 	types := make([]schema.Type, 0, len(branches))
 	for _, b := range branches {
 		types = append(types, b.Type)
@@ -41,7 +41,7 @@ func (g *unionGenerator) printDecl(p *gen.Printer, name string, branches []schem
 	p.Println(`}`)
 }
 
-func (g *unionGenerator) printEncodeFunc(p *gen.Printer, name string, branches []schema.Branch) {
+func (g *unionGenerator) printEncodeFunc(p gen.Printer, name string, branches []schema.Branch) {
 	p.Println(`// EncodeMsgpack implements the Encoder interface for `, name, `.`)
 	p.Println(`func (o `, name, `) EncodeMsgpack(w *msgpack.Writer) (err error) {`)
 	p.Println(`	if err = w.WriteArrayHeader(2); err != nil {`)
@@ -64,7 +64,7 @@ func (g *unionGenerator) printEncodeFunc(p *gen.Printer, name string, branches [
 	p.Println(`}`)
 }
 
-func (g *unionGenerator) printDecodeFunc(p *gen.Printer, name string, branches []schema.Branch) {
+func (g *unionGenerator) printDecodeFunc(p gen.Printer, name string, branches []schema.Branch) {
 	p.Println(`// DecodeMsgpack implements the Decoder interface for `, name, `.`)
 	p.Println(`func (o *`, name, `) DecodeMsgpack(r *msgpack.Reader) error {`)
 	p.Println(`	if err := r.ReadArrayHeaderWithSize(2); err != nil {`)

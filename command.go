@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tsne/mpackc/gen"
 	"github.com/tsne/mpackc/opts"
 	"github.com/tsne/mpackc/schema"
 )
@@ -18,7 +17,7 @@ type command struct {
 	generator func(opts *opts.Opts) generator
 }
 
-func (c *command) exec(opts *opts.Opts, language string, inputFiles []string) error {
+func (c *command) exec(opts *opts.Opts, inputFiles []string) error {
 	schemas := make([]*schema.Schema, len(inputFiles))
 	for i, inputFile := range inputFiles {
 		var err error
@@ -27,15 +26,13 @@ func (c *command) exec(opts *opts.Opts, language string, inputFiles []string) er
 		}
 	}
 
-	p := &gen.Printer{}
 	gen := newCodeGenerator(c.generator(opts), generatorOptions{
-		language:   language,
 		outputPath: opts.String("out"),
 		deprecated: opts.Bool("deprecated"),
 	})
 
 	for i, schema := range schemas {
-		if err := gen.Generate(p, schema, inputFiles[i]); err != nil {
+		if err := gen.Generate(schema, inputFiles[i]); err != nil {
 			return err
 		}
 	}
@@ -86,7 +83,7 @@ func (c commands) Exec(language string, args []string) error {
 		return err
 	}
 
-	return cmd.exec(opts, language, fset.Args())
+	return cmd.exec(opts, fset.Args())
 }
 
 func (c commands) printHelp(language string, opts *opts.Opts) {
