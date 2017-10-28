@@ -58,17 +58,31 @@ func (g *unionGenerator) printEncodeFunc(p gen.Printer, branches *branches) {
 	}
 	if branches.mapping != nil || len(branches.objs) != 0 {
 		p.Println(`		case "object":`)
-		for _, obj := range branches.objs {
-			typecheck := fmt.Sprintf(obj.typecheck, "v")
+		p.Println(`			v = v || {};`)
 
+		var emptyObj *branch
+		for _, obj := range branches.objs {
+			if obj.typecheck == "" {
+				emptyObj = obj
+				continue
+			}
+
+			typecheck := fmt.Sprintf(obj.typecheck, "v")
 			p.Println(`			if(`, typecheck, `) {`)
+			p.Println(`				// `, typescriptTypename(obj.Type))
 			p.Println(`				Int.enc(buf, `, obj.Ordinal, `);`)
-			p.Println(`				return `, obj.msgpackType, `.enc(buf, `, obj.Ordinal, `);`)
+			p.Println(`				return `, obj.msgpackType, `.enc(buf, v);`)
 			p.Println(`			}`)
 		}
+
 		if branches.mapping != nil {
+			p.Println(`			// `, typescriptTypename(branches.mapping.Type))
 			p.Println(`			Int.enc(buf, `, branches.mapping.Ordinal, `);`)
 			p.Println(`			return `, branches.mapping.msgpackType, `.enc(buf, v);`)
+		} else if emptyObj != nil {
+			p.Println(`			// `, typescriptTypename(emptyObj.Type))
+			p.Println(`			Int.enc(buf, `, emptyObj.Ordinal, `);`)
+			p.Println(`			return `, emptyObj.msgpackType, `.enc(buf, v);`)
 		}
 	}
 
@@ -158,8 +172,8 @@ func collectBranches(u *schema.Union) *branches {
 
 			case *schema.Struct:
 				fieldchecks := make([]string, 0, len(decl.Fields))
-				for _, field := range decl.Fields {
-					fieldchecks = append(fieldchecks, `"`+field.Name+`" in %[1]v`)
+				for _, f := range decl.Fields {
+					fieldchecks = append(fieldchecks, `"`+fieldName(f)+`" in %[1]v`)
 				}
 				b.typecheck = strings.Join(fieldchecks, " && ")
 				res.objs = append(res.objs, b)

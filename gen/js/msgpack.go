@@ -10,22 +10,7 @@ import (
 func msgpackImports(s *schema.Schema) []string {
 	imports := map[string]struct{}{}
 	iterTypes(s, func(t schema.Type) {
-		if defined, ok := t.(*schema.DefinedType); ok {
-			if _, isEnum := defined.Decl.(*schema.Enum); isEnum {
-				imports["Int"] = struct{}{}
-			}
-		} else {
-			switch t.(type) {
-			case *schema.DefinedType:
-				// skip
-			case *schema.Array:
-				imports["TypedArr"] = struct{}{}
-			case *schema.Map:
-				imports["TypedMap"] = struct{}{}
-			default:
-				imports[msgpackTypename(t)] = struct{}{}
-			}
-		}
+		addMsgpackImports(imports, t)
 	})
 
 	res := make([]string, 0, len(imports))
@@ -34,6 +19,38 @@ func msgpackImports(s *schema.Schema) []string {
 	}
 	sort.Strings(res)
 	return res
+}
+
+func addMsgpackImports(imports map[string]struct{}, t schema.Type) {
+	switch t := t.(type) {
+	case *schema.Array:
+		imports["TypedArr"] = struct{}{}
+
+	case *schema.Map:
+		imports["TypedMap"] = struct{}{}
+
+	case *schema.DefinedType:
+		switch decl := t.Decl.(type) {
+		case *schema.Enum:
+			imports["Int"] = struct{}{}
+		case *schema.Struct:
+			imports["Int"] = struct{}{} // field ordinal
+			imports["Map"] = struct{}{} // map header
+			imports["Any"] = struct{}{} // skip value in decoding
+			for _, f := range decl.Fields {
+				addMsgpackImports(imports, f.Type)
+			}
+		case *schema.Union:
+			imports["Int"] = struct{}{} // branch ordinal
+			imports["Arr"] = struct{}{} // array header
+			for _, b := range decl.Branches {
+				addMsgpackImports(imports, b.Type)
+			}
+		}
+
+	default:
+		imports[msgpackTypename(t)] = struct{}{}
+	}
 }
 
 func msgpackTypename(t schema.Type) string {

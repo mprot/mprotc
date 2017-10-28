@@ -16,13 +16,10 @@ func (g *structGenerator) Generate(p gen.Printer, s *schema.Struct) {
 }
 
 func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.Field, doc []string) {
-	var maxNameLen, maxTypeLen int
+	var maxNameLen int
 	for _, f := range fields {
 		if len(f.Name) > maxNameLen {
 			maxNameLen = len(f.Name)
-		}
-		if typ := typename(f.Type); len(typ) > maxTypeLen {
-			maxTypeLen = len(typ)
 		}
 	}
 
@@ -30,7 +27,7 @@ func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.
 	p.Println(`type `, name, ` struct {`)
 	for _, f := range fields {
 		fname := gen.RPad(f.Name, maxNameLen)
-		ftype := gen.RPad(typename(f.Type), maxTypeLen)
+		ftype := typename(f.Type)
 
 		p.Println(`	`, fname, ` `, ftype)
 	}
