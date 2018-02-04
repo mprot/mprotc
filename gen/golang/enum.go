@@ -3,8 +3,8 @@ package golang
 import (
 	"math"
 
-	"github.com/tsne/mpackc/gen"
-	"github.com/tsne/mpackc/schema"
+	"github.com/mprot/mprotc/gen"
+	"github.com/mprot/mprotc/schema"
 )
 
 type enumGenerator struct {

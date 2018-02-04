@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tsne/mpackc/gen/golang"
-	"github.com/tsne/mpackc/gen/js"
-	"github.com/tsne/mpackc/opts"
+	"github.com/mprot/mprotc/gen/golang"
+	"github.com/mprot/mprotc/gen/js"
+	"github.com/mprot/mprotc/opts"
 )
 
 var cli = commands{

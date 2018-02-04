@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-// Type defines an interface for the various type supported by the
-// mpack schema definition.
+// Type defines an interface for the various types supported by the
+// mprot schema definition.
 type Type interface {
 	Name() string
 	typeid() string

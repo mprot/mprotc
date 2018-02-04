@@ -3,7 +3,7 @@ package js
 import (
 	"strings"
 
-	"github.com/tsne/mpackc/gen"
+	"github.com/mprot/mprotc/gen"
 )
 
 func printDoc(p gen.Printer, doc []string, fallback string) {

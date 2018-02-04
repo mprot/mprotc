@@ -5,8 +5,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/tsne/mpackc/gen"
-	"github.com/tsne/mpackc/schema"
+	"github.com/mprot/mprotc/gen"
+	"github.com/mprot/mprotc/schema"
 )
 
 func typename(t schema.Type) string {

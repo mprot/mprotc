@@ -6,9 +6,9 @@ type Decl interface {
 	validate(r errorReporter)
 }
 
-// Schema holds all the data for an mpack schema. The order
-// of the constants, enums, structs, and unions depends on
-// the parser.
+// Schema holds all the data for an mprot schema definition.
+// The order of the constants, enums, structs, and unions depends
+// on the parser.
 type Schema struct {
 	Doc     []string
 	Package string
@@ -21,7 +21,7 @@ func (s *Schema) validate(r errorReporter) {
 	}
 }
 
-// Const holds the data of an mpack constant.
+// Const holds the data of an mprot constant.
 type Const struct {
 	pos   Pos
 	Doc   []string
@@ -46,7 +46,7 @@ type Enumerator struct {
 	Tags  Tags
 }
 
-// Enum holds the data of an mpack enumeration.
+// Enum holds the data of an mprot enumeration.
 type Enum struct {
 	pos         Pos
 	Doc         []string
@@ -81,7 +81,7 @@ type Field struct {
 	Tags    Tags
 }
 
-// Struct holds the data of an mpack struct.
+// Struct holds the data of an mprot struct.
 type Struct struct {
 	pos    Pos
 	Doc    []string
@@ -120,7 +120,7 @@ type Branch struct {
 	Tags    Tags
 }
 
-// Union holds the data of an mpack union.
+// Union holds the data of an mprot union.
 type Union struct {
 	pos      Pos
 	Doc      []string

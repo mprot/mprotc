@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tsne/mpackc/opts"
-	"github.com/tsne/mpackc/schema"
+	"github.com/mprot/mprotc/opts"
+	"github.com/mprot/mprotc/schema"
 )
 
-const binName = "mpackc"
+const binName = "mprotc"
 
 type command struct {
 	options   func(opts *opts.Opts)
@@ -51,7 +51,7 @@ type commands map[string]command // language => command
 func (c commands) Exec(language string, args []string) error {
 	opts := opts.New()
 	opts.AddString("--out <path>", ".", "Specify the output path for the generated code.")
-	opts.AddBool("--deprecated", false, "Include deprecated fields in the generated code.")
+	opts.AddBool("--deprecated", false, "Include the deprecated fields in the generated code.")
 	opts.AddString("--package <package name>", "", "Override the schema's package name.")
 
 	cmd, has := c[language]
@@ -92,7 +92,7 @@ func (c commands) printHelp(language string, opts *opts.Opts) {
 	w := os.Stderr
 
 	fmt.Fprintln(w, `Usage:`)
-	fmt.Fprintln(w, ` `, binName, language, `[options] [file ...]`)
+	fmt.Fprintln(w, ` `, binName, language, `[options] [schema-file ...]`)
 	fmt.Fprintln(w, ` `, binName, `help`, language)
 	fmt.Fprintln(w)
 	if opts != nil {
