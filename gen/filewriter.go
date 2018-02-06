@@ -67,6 +67,12 @@ func (p *printer) Println(args ...interface{}) {
 }
 
 func (p *printer) writeFile(filename string) error {
+	if dir := filepath.Dir(filename); dir != "." {
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return err
+		}
+	}
+
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
