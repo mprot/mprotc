@@ -1,17 +1,8 @@
 package gen
 
 import (
-	"bytes"
-	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 )
-
-// Printer defines an interface for printing lines of code into a memory buffer.
-type Printer interface {
-	Println(args ...interface{}) // always appends newline
-}
 
 // FileWriter manages the printer for the requested files. The base name of the
 // target file cannot be changed. Printers are distinguished by the file extension
@@ -25,8 +16,7 @@ type FileWriter struct {
 // filename. The base name for each file results from outputDir and targetName, where
 // the file extension of targetName will be trimmed.
 func NewFileWriter(outputDir string, targetName string) *FileWriter {
-	ext := filepath.Ext(targetName)
-	targetName = targetName[:len(targetName)-len(ext)]
+	targetName = targetName[:len(targetName)-len(filepath.Ext(targetName))]
 
 	return &FileWriter{
 		baseName: filepath.Join(outputDir, targetName),
@@ -55,37 +45,4 @@ func (w *FileWriter) Flush() error {
 		}
 	}
 	return nil
-}
-
-type printer struct {
-	bytes.Buffer
-}
-
-func (p *printer) Println(args ...interface{}) {
-	fmt.Fprint(p, args...)
-	p.WriteByte('\n')
-}
-
-func (p *printer) writeFile(filename string) error {
-	if dir := filepath.Dir(filename); dir != "." {
-		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			return err
-		}
-	}
-
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	n, err := f.Write(p.Bytes())
-	switch {
-	case err != nil:
-		return err
-	case n != p.Len():
-		return io.ErrShortWrite
-	default:
-		return nil
-	}
 }

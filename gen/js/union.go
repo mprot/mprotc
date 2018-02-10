@@ -10,15 +10,73 @@ import (
 
 type unionGenerator struct{}
 
-func (g *unionGenerator) Generate(p gen.Printer, u *schema.Union) {
-	branches := collectBranches(u)
+func (g *unionGenerator) GenerateDecl(p gen.Printer, u *schema.Union, meta string) {
+	meta = meta + "." + u.Name
 
 	printDoc(p, u.Doc, u.Name+" union.")
 	p.Println(`export const `, u.Name, ` = {`)
-	g.printEncodeFunc(p, branches)
+	g.printEncodeFunc(p, meta)
 	p.Println()
-	g.printDecodeFunc(p, branches)
+	g.printDecodeFunc(p, meta)
 	p.Println(`};`)
+}
+
+func (g *unionGenerator) GenerateMetaKey(p gen.Printer, u *schema.Union) {
+	branches := collectBranches(u)
+
+	p.Println(u.Name, `: {`)
+	for _, b := range u.Branches {
+		p.Println(`	`, b.Ordinal, `: `, msgpackTypename(b.Type), `,`)
+	}
+	p.Println(`	keyof(v) {`)
+	p.Println(`		switch(typeof v) {`)
+	if branches.boolean != nil {
+		p.Println(`		case "bool":`)
+		p.Println(`			return `, branches.boolean.Ordinal, `;`)
+	}
+	if branches.integer != nil || branches.float != nil {
+		number := branches.float
+		if number == nil {
+			number = branches.integer
+		}
+		p.Println(`		case "number":`)
+		p.Println(`			return `, number.Ordinal, `;`)
+	}
+	if branches.str != nil {
+		p.Println(`		case "string":`)
+		p.Println(`			return `, branches.str.Ordinal, `;`)
+	}
+	if branches.mapping != nil || len(branches.objs) != 0 {
+		p.Println(`		case "object":`)
+		p.Println(`			if(v) {`)
+
+		var emptyObj *branch
+		for _, obj := range branches.objs {
+			if obj.typecheck == "" {
+				emptyObj = obj
+				continue
+			}
+
+			typecheck := fmt.Sprintf(obj.typecheck, "v")
+			p.Println(`				if(`, typecheck, `) {`)
+			p.Println(`					return `, obj.Ordinal, `; // `, typescriptTypename(obj.Type))
+			p.Println(`				}`)
+		}
+
+		p.Println(`			}`)
+		if branches.mapping != nil {
+			p.Println(`			return `, branches.mapping.Ordinal, `; // `, typescriptTypename(branches.mapping.Type))
+		} else if emptyObj != nil {
+			p.Println(`			return `, emptyObj.Ordinal, `; // `, typescriptTypename(emptyObj.Type))
+		} else {
+			p.Println(`			// fallthrough`)
+		}
+	}
+	p.Println(`		default:`)
+	p.Println(`			throw new TypeError("invalid union type");`)
+	p.Println(`		}`)
+	p.Println(`	},`)
+	p.Println(`},`)
 }
 
 func (g *unionGenerator) GenerateTypeDecls(p gen.Printer, u *schema.Union) {
@@ -31,80 +89,25 @@ func (g *unionGenerator) GenerateTypeDecls(p gen.Printer, u *schema.Union) {
 	p.Println(`export type `, u.Name, ` = `, strings.Join(types, " | "))
 }
 
-func (g *unionGenerator) printEncodeFunc(p gen.Printer, branches *branches) {
+func (g *unionGenerator) printEncodeFunc(p gen.Printer, meta string) {
 	p.Println(`	enc(buf, v) {`)
 	p.Println(`		Arr.encHeader(buf, 2);`)
-	p.Println(`		switch(typeof v) {`)
-
-	if branches.boolean != nil {
-		p.Println(`		case "bool":`)
-		p.Println(`			Int.enc(buf, `, branches.boolean.Ordinal, `);`)
-		p.Println(`			return `, branches.boolean.msgpackType, `.enc(buf, v);`)
-	}
-	if branches.integer != nil || branches.float != nil {
-		number := branches.float
-		if number == nil {
-			number = branches.integer
-		}
-
-		p.Println(`		case "number":`)
-		p.Println(`			Int.enc(buf, `, number.Ordinal, `);`)
-		p.Println(`			return `, number.msgpackType, `.enc(buf, v);`)
-	}
-	if branches.str != nil {
-		p.Println(`		case "string":`)
-		p.Println(`			Int.enc(buf, `, branches.str.Ordinal, `);`)
-		p.Println(`			return `, branches.str.msgpackType, `.enc(buf, v);`)
-	}
-	if branches.mapping != nil || len(branches.objs) != 0 {
-		p.Println(`		case "object":`)
-		p.Println(`			v = v || {};`)
-
-		var emptyObj *branch
-		for _, obj := range branches.objs {
-			if obj.typecheck == "" {
-				emptyObj = obj
-				continue
-			}
-
-			typecheck := fmt.Sprintf(obj.typecheck, "v")
-			p.Println(`			if(`, typecheck, `) {`)
-			p.Println(`				// `, typescriptTypename(obj.Type))
-			p.Println(`				Int.enc(buf, `, obj.Ordinal, `);`)
-			p.Println(`				return `, obj.msgpackType, `.enc(buf, v);`)
-			p.Println(`			}`)
-		}
-
-		if branches.mapping != nil {
-			p.Println(`			// `, typescriptTypename(branches.mapping.Type))
-			p.Println(`			Int.enc(buf, `, branches.mapping.Ordinal, `);`)
-			p.Println(`			return `, branches.mapping.msgpackType, `.enc(buf, v);`)
-		} else if emptyObj != nil {
-			p.Println(`			// `, typescriptTypename(emptyObj.Type))
-			p.Println(`			Int.enc(buf, `, emptyObj.Ordinal, `);`)
-			p.Println(`			return `, emptyObj.msgpackType, `.enc(buf, v);`)
-		}
-	}
-
-	p.Println(`		default:`)
-	p.Println(`			throw new TypeError("invalid union type");`)
-	p.Println(`		}`)
+	p.Println()
+	p.Println(`		const k = `, meta, `.keyof(v);`)
+	p.Println(`		Int.enc(buf, k);`)
+	p.Println(`		`, meta, `[k].enc(buf, v);`)
 	p.Println(`	},`)
 }
 
-func (g *unionGenerator) printDecodeFunc(p gen.Printer, branches *branches) {
+func (g *unionGenerator) printDecodeFunc(p gen.Printer, meta string) {
 	p.Println(`	dec(buf) {`)
 	p.Println(`		Arr.decHeader(buf, 2);`)
-	p.Println(`		switch(Int.dec(buf)) {`)
-
-	for _, b := range branches.all {
-		p.Println(`		case `, b.Ordinal, `:`)
-		p.Println(`			return `, b.msgpackType, `.dec(buf);`)
-	}
-
-	p.Println(`		default :`)
+	p.Println()
+	p.Println(`		const t = `, meta, `[Int.dec(buf)];`)
+	p.Println(`		if(!t) {`)
 	p.Println(`			throw new TypeError("invalid union type");`)
 	p.Println(`		}`)
+	p.Println(`		return t.dec(buf);`)
 	p.Println(`	},`)
 }
 

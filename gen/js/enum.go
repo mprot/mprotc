@@ -9,7 +9,7 @@ type enumGenerator struct {
 	typeDecls bool
 }
 
-func (g *enumGenerator) Generate(p gen.Printer, e *schema.Enum) {
+func (g *enumGenerator) GenerateDecl(p gen.Printer, e *schema.Enum) {
 	printDoc(p, e.Doc, e.Name+" enumeration.")
 	if g.typeDecls {
 		// When we are generating a separate enum type declaration,
