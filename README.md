@@ -1,5 +1,5 @@
 # mprotc
-`mprotc` is a compiler for mprot to translate schema definitions into source code.
+`mprotc` is a compiler for [mprot](https://github.com/mprot/mprot) to translate schema definitions into source code.
 
 ## Usage
 

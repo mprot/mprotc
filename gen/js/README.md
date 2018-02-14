@@ -43,7 +43,7 @@ TypeScript:
 ```ts
 export const S = {
     enc(buf, v) { ... },
-    dev(buf) { ... },
+    dec(buf) { ... },
 };
 
 // decl.d.ts
@@ -60,7 +60,7 @@ JavaScript:
 ```js
 export const U = {
     enc(buf, v) { ... },
-    dev(buf) { ... },
+    dec(buf) { ... },
 };
 ```
 
@@ -68,7 +68,7 @@ TypeScript:
 ```ts
 export const U = {
     enc(buf, v) { ... },
-    dev(buf) { ... },
+    dec(buf) { ... },
 };
 
 // decl.d.ts
