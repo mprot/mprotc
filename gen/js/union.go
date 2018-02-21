@@ -10,25 +10,19 @@ import (
 
 type unionGenerator struct{}
 
-func (g *unionGenerator) GenerateDecl(p gen.Printer, u *schema.Union, meta string) {
-	meta = meta + "." + u.Name
-
-	printDoc(p, u.Doc, u.Name+" union.")
-	p.Println(`export const `, u.Name, ` = {`)
-	g.printEncodeFunc(p, meta)
-	p.Println()
-	g.printDecodeFunc(p, meta)
-	p.Println(`};`)
-}
-
-func (g *unionGenerator) GenerateMetaKey(p gen.Printer, u *schema.Union) {
+func (g *unionGenerator) GenerateDecl(p gen.Printer, u *schema.Union) {
 	branches := collectBranches(u)
 
-	p.Println(u.Name, `: {`)
-	for _, b := range u.Branches {
+	printDoc(p, u.Doc, u.Name+" union.")
+	p.Println(`export const `, u.Name, ` = Union({`)
+
+	// branches
+	for _, b := range branches.all {
 		p.Println(`	`, b.Ordinal, `: `, msgpackTypename(b.Type), `,`)
 	}
-	p.Println(`	keyof(v) {`)
+
+	// ordinalOf
+	p.Println(`	ordinalOf(v) {`)
 	p.Println(`		switch(typeof v) {`)
 	if branches.boolean != nil {
 		p.Println(`		case "bool":`)
@@ -76,7 +70,8 @@ func (g *unionGenerator) GenerateMetaKey(p gen.Printer, u *schema.Union) {
 	p.Println(`			throw new TypeError("invalid union type");`)
 	p.Println(`		}`)
 	p.Println(`	},`)
-	p.Println(`},`)
+
+	p.Println(`});`)
 }
 
 func (g *unionGenerator) GenerateTypeDecls(p gen.Printer, u *schema.Union) {
@@ -87,28 +82,6 @@ func (g *unionGenerator) GenerateTypeDecls(p gen.Printer, u *schema.Union) {
 
 	p.Println(`export declare var `, u.Name, `: Type<`, u.Name, `>;`)
 	p.Println(`export type `, u.Name, ` = `, strings.Join(types, " | "))
-}
-
-func (g *unionGenerator) printEncodeFunc(p gen.Printer, meta string) {
-	p.Println(`	enc(buf, v) {`)
-	p.Println(`		Arr.encHeader(buf, 2);`)
-	p.Println()
-	p.Println(`		const k = `, meta, `.keyof(v);`)
-	p.Println(`		Int.enc(buf, k);`)
-	p.Println(`		`, meta, `[k].enc(buf, v);`)
-	p.Println(`	},`)
-}
-
-func (g *unionGenerator) printDecodeFunc(p gen.Printer, meta string) {
-	p.Println(`	dec(buf) {`)
-	p.Println(`		Arr.decHeader(buf, 2);`)
-	p.Println()
-	p.Println(`		const t = `, meta, `[Int.dec(buf)];`)
-	p.Println(`		if(!t) {`)
-	p.Println(`			throw new TypeError("invalid union type");`)
-	p.Println(`		}`)
-	p.Println(`		return t.dec(buf);`)
-	p.Println(`	},`)
 }
 
 type branch struct {

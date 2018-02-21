@@ -43,8 +43,6 @@ func (g *Generator) Generate(w *gen.FileWriter, s *schema.Schema) {
 }
 
 func (g *Generator) generate(p gen.Printer, s *schema.Schema) {
-	const meta = "__meta"
-
 	g.printPreamble(p)
 	if len(s.Doc) != 0 {
 		p.Println()
@@ -53,11 +51,9 @@ func (g *Generator) generate(p gen.Printer, s *schema.Schema) {
 	p.Println()
 	g.printImports(p, msgpackImports(s))
 	p.Println()
-	g.printDeclarations(p, s, meta)
+	g.printDeclarations(p, s)
 	p.Println()
 	g.printCollectionTypes(p, s)
-	p.Println()
-	g.printMetadata(p, s, meta)
 }
 
 func (g *Generator) generateTypeDecls(p gen.Printer, s *schema.Schema) {
@@ -94,7 +90,7 @@ func (g *Generator) printImports(p gen.Printer, imports []string) {
 	}
 }
 
-func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema, meta string) {
+func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema) {
 	for i, decl := range s.Decls {
 		switch decl := decl.(type) {
 		case *schema.Const:
@@ -102,9 +98,9 @@ func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema, meta stri
 		case *schema.Enum:
 			g.enum.GenerateDecl(p, decl)
 		case *schema.Struct:
-			g.strct.GenerateDecl(p, decl, meta)
+			g.strct.GenerateDecl(p, decl)
 		case *schema.Union:
-			g.union.GenerateDecl(p, decl, meta)
+			g.union.GenerateDecl(p, decl)
 		default:
 			panic(fmt.Sprintf("unsupported declaration type %T", decl))
 		}
@@ -113,29 +109,6 @@ func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema, meta stri
 			p.Println()
 		}
 	}
-}
-
-func (g *Generator) printMetadata(p gen.Printer, s *schema.Schema, meta string) {
-	p.Println(`// Metadata for struct and union types`)
-	p.Println(`const `, meta, ` = {`)
-
-	metap := gen.PrefixedPrinter(p, `	`)
-	for _, decl := range s.Decls {
-		switch decl := decl.(type) {
-		case *schema.Const:
-			continue
-		case *schema.Enum:
-			continue
-		case *schema.Struct:
-			g.strct.GenerateMetaKey(metap, decl)
-		case *schema.Union:
-			g.union.GenerateMetaKey(metap, decl)
-		default:
-			panic(fmt.Sprintf("unsupported declaration type %T", decl))
-		}
-	}
-
-	p.Println(`};`)
 }
 
 func (g *Generator) printCollectionTypes(p gen.Printer, s *schema.Schema) {

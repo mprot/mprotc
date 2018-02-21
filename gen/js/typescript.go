@@ -8,23 +8,23 @@ import (
 )
 
 func typescriptImports(s *schema.Schema) []string {
-	needTypeImport := false
+	hasStruct := false
+	hasUnion := false
 	iterTypes(s, func(t schema.Type) {
 		if defined, ok := t.(*schema.DefinedType); ok {
 			switch defined.Decl.(type) {
 			case *schema.Struct:
-				needTypeImport = true
+				hasStruct = true
 			case *schema.Union:
-				needTypeImport = true
+				hasUnion = true
 			}
 		}
 	})
 
-	res := make([]string, 0, 1)
-	if needTypeImport {
-		res = append(res, "Type")
+	if !hasStruct && !hasUnion {
+		return nil
 	}
-	return res
+	return []string{"Type"}
 }
 
 func typescriptTypename(t schema.Type) string {
