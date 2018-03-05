@@ -34,12 +34,14 @@ func addMsgpackImports(imports map[string]struct{}, t schema.Type) {
 		case *schema.Enum:
 			imports["Int"] = struct{}{}
 		case *schema.Struct:
-			imports["Struct"] = struct{}{}
+			imports["structEncoder"] = struct{}{}
+			imports["structDecoder"] = struct{}{}
 			for _, f := range decl.Fields {
 				addMsgpackImports(imports, f.Type)
 			}
 		case *schema.Union:
-			imports["Union"] = struct{}{}
+			imports["unionEncoder"] = struct{}{}
+			imports["unionDecoder"] = struct{}{}
 			for _, b := range decl.Branches {
 				addMsgpackImports(imports, b.Type)
 			}

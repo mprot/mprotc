@@ -10,11 +10,21 @@ import (
 
 type unionGenerator struct{}
 
-func (g *unionGenerator) GenerateDecl(p gen.Printer, u *schema.Union) {
-	branches := collectBranches(u)
+func (g *unionGenerator) GenerateDecl(p gen.Printer, u *schema.Union, codec codecContext) {
+	codecEncode := codec.EncodeFunc()
+	codecDecode := codec.DecodeFunc()
 
 	printDoc(p, u.Doc, u.Name+" union.")
-	p.Println(`export const `, u.Name, ` = Union({`)
+	p.Println(`export const `, u.Name, ` = {`)
+	p.Println(`	enc(buf, v) { `, codecEncode, `(`, codec.Key(), `, unionEncoder, buf, v); },`)
+	p.Println(`	dec(buf) { return `, codecDecode, `(`, codec.Key(), `, unionDecoder, buf); },`)
+	p.Println(`};`)
+}
+
+func (g *unionGenerator) GenerateCodec(p gen.Printer, u *schema.Union, codec codecContext) {
+	branches := collectBranches(u)
+
+	p.Println(codec.Key(), `: { // `, u.Name)
 
 	// branches
 	for _, b := range branches.all {
@@ -70,8 +80,7 @@ func (g *unionGenerator) GenerateDecl(p gen.Printer, u *schema.Union) {
 	p.Println(`			throw new TypeError("invalid union type");`)
 	p.Println(`		}`)
 	p.Println(`	},`)
-
-	p.Println(`});`)
+	p.Println(`},`)
 }
 
 func (g *unionGenerator) GenerateTypeDecls(p gen.Printer, u *schema.Union) {

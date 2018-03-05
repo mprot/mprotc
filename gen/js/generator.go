@@ -43,6 +43,8 @@ func (g *Generator) Generate(w *gen.FileWriter, s *schema.Schema) {
 }
 
 func (g *Generator) generate(p gen.Printer, s *schema.Schema) {
+	codec := newCodec("__codec")
+
 	g.printPreamble(p)
 	if len(s.Doc) != 0 {
 		p.Println()
@@ -51,9 +53,13 @@ func (g *Generator) generate(p gen.Printer, s *schema.Schema) {
 	p.Println()
 	g.printImports(p, msgpackImports(s))
 	p.Println()
-	g.printDeclarations(p, s)
+	g.printDeclarations(p, s, codec)
 	p.Println()
 	g.printCollectionTypes(p, s)
+	if codec.Size() != 0 {
+		p.Println()
+		g.printCodec(p, codec)
+	}
 }
 
 func (g *Generator) generateTypeDecls(p gen.Printer, s *schema.Schema) {
@@ -90,7 +96,7 @@ func (g *Generator) printImports(p gen.Printer, imports []string) {
 	}
 }
 
-func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema) {
+func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema, codec *codec) {
 	for i, decl := range s.Decls {
 		switch decl := decl.(type) {
 		case *schema.Const:
@@ -98,9 +104,9 @@ func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema) {
 		case *schema.Enum:
 			g.enum.GenerateDecl(p, decl)
 		case *schema.Struct:
-			g.strct.GenerateDecl(p, decl)
+			g.strct.GenerateDecl(p, decl, codec.Context(decl))
 		case *schema.Union:
-			g.union.GenerateDecl(p, decl)
+			g.union.GenerateDecl(p, decl, codec.Context(decl))
 		default:
 			panic(fmt.Sprintf("unsupported declaration type %T", decl))
 		}
@@ -109,6 +115,23 @@ func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema) {
 			p.Println()
 		}
 	}
+}
+
+func (g *Generator) printCodec(p gen.Printer, codec *codec) {
+	p.Println(`const `, codec.Name(), ` = {`)
+
+	for _, ctx := range codec.Contexts() {
+		switch decl := ctx.Decl().(type) {
+		case *schema.Struct:
+			g.strct.GenerateCodec(gen.PrefixedPrinter(p, "\t"), decl, ctx)
+		case *schema.Union:
+			g.union.GenerateCodec(gen.PrefixedPrinter(p, "\t"), decl, ctx)
+		}
+	}
+
+	p.Println(`	enc(ord, newEnc, buf, v) { (this[ord].enc = this[ord].enc || newEnc(this[ord]))(buf, v) },`)
+	p.Println(`	dec(ord, newDec, buf) { return (this[ord].dec = this[ord].dec || newDec(this[ord]))(buf) },`)
+	p.Println(`};`)
 }
 
 func (g *Generator) printCollectionTypes(p gen.Printer, s *schema.Schema) {
