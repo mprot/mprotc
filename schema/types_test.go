@@ -132,6 +132,26 @@ func TestMap(t *testing.T) {
 	}
 }
 
+func TestRaw(t *testing.T) {
+	var r Raw
+	switch {
+	case r.Name() != "raw":
+		t.Errorf("unexpected name for raw: %s", r.Name())
+	case r.typeid() != "raw":
+		t.Errorf("unexpected type id for raw: %s", r.typeid())
+	}
+}
+
+func TestTime(t *testing.T) {
+	var tm Time
+	switch {
+	case tm.Name() != "time":
+		t.Errorf("unexpected name for time: %s", tm.Name())
+	case tm.typeid() != "time":
+		t.Errorf("unexpected type id for time: %s", tm.typeid())
+	}
+}
+
 func TestPointer(t *testing.T) {
 	infos := []struct {
 		name string

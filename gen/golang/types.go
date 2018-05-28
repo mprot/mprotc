@@ -13,6 +13,8 @@ func typename(t schema.Type) string {
 	switch t.(type) {
 	case *schema.Bytes:
 		return "[]byte"
+	case *schema.Raw:
+		return "msgpack.Raw"
 	case *schema.Time:
 		return "time.Time"
 	default:
@@ -116,6 +118,11 @@ func printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		p.Println(indent, `	var v `, typename(t.Value))
 		printDecodeCall(p, t.Value, "v", indent+"\t")
 		p.Println(indent, `	`, specifier, `[k] = v`)
+		p.Println(indent, `}`)
+
+	case *schema.Raw:
+		p.Println(indent, `if `, specifier, `, err = r.ReadRaw(`, specifier, `); err != nil {`)
+		p.Println(indent, `	return err`)
 		p.Println(indent, `}`)
 
 	case *schema.DefinedType:

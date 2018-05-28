@@ -297,7 +297,8 @@ func (p *parser) parseType() Type {
 		_, isPtr := val.(*Pointer)
 		_, isArr := val.(*Array)
 		_, isMap := val.(*Map)
-		if isPtr || isArr || isMap {
+		_, isRaw := val.(*Raw)
+		if isPtr || isArr || isMap || isRaw {
 			p.errorf("pointer type *%s not supported", val.Name())
 		}
 		return &Pointer{Value: val}
@@ -367,6 +368,8 @@ func (p *parser) resolve(ident string) Type {
 		return &String{}
 	case "bytes":
 		return &Bytes{}
+	case "raw":
+		return &Raw{}
 	case "time":
 		return &Time{}
 	default:

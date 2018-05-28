@@ -39,15 +39,16 @@ func TestParse(t *testing.T) {
 		F64  float64            ` + "`" + `13` + "`" + `
 		S    string             ` + "`" + `14` + "`" + `
 		Bin  bytes              ` + "`" + `15` + "`" + `
-		AI   []int              ` + "`" + `16` + "`" + `
-		AF   []float32          ` + "`" + `17` + "`" + `
-		AS   [2]string          ` + "`" + `18` + "`" + `
-		MSS  map[string]string  ` + "`" + `19` + "`" + `
-		MFI  map[float64]int    ` + "`" + `20` + "`" + `
-		T    time               ` + "`" + `21` + "`" + `
-		PS   *string            ` + "`" + `22` + "`" + `
-		PE  *E                  ` + "`" + `23` + "`" + `
-		E    E                  ` + "`" + `24` + "`" + `
+		Raw  raw                ` + "`" + `16` + "`" + `
+		AI   []int              ` + "`" + `17` + "`" + `
+		AF   []float32          ` + "`" + `18` + "`" + `
+		AS   [2]string          ` + "`" + `19` + "`" + `
+		MSS  map[string]string  ` + "`" + `20` + "`" + `
+		MFI  map[float64]int    ` + "`" + `21` + "`" + `
+		T    time               ` + "`" + `22` + "`" + `
+		PS   *string            ` + "`" + `23` + "`" + `
+		PE  *E                  ` + "`" + `24` + "`" + `
+		E    E                  ` + "`" + `25` + "`" + `
 	}
 	
 	; // empty statement
@@ -93,7 +94,7 @@ func TestParse(t *testing.T) {
 
 	enums := [...]*Enum{
 		{
-			pos:  Pos{Line: 48, Column: 2},
+			pos:  Pos{Line: 49, Column: 2},
 			Doc:  []string{"my enum", "doc comment"},
 			Name: "E",
 			Enumerators: []Enumerator{
@@ -125,22 +126,23 @@ func TestParse(t *testing.T) {
 				{Name: "F64", Type: &Float{Bits: 64}, Ordinal: 13, Tags: Tags{}},
 				{Name: "S", Type: &String{}, Ordinal: 14, Tags: Tags{}},
 				{Name: "Bin", Type: &Bytes{}, Ordinal: 15, Tags: Tags{}},
-				{Name: "AI", Type: &Array{Value: &Int{}}, Ordinal: 16, Tags: Tags{}},
-				{Name: "AF", Type: &Array{Value: &Float{Bits: 32}}, Ordinal: 17, Tags: Tags{}},
-				{Name: "AS", Type: &Array{Size: 2, Value: &String{}}, Ordinal: 18, Tags: Tags{}},
-				{Name: "MSS", Type: &Map{Key: &String{}, Value: &String{}}, Ordinal: 19, Tags: Tags{}},
-				{Name: "MFI", Type: &Map{Key: &Float{Bits: 64}, Value: &Int{}}, Ordinal: 20, Tags: Tags{}},
-				{Name: "T", Type: &Time{}, Ordinal: 21, Tags: Tags{}},
-				{Name: "PS", Type: &Pointer{Value: &String{}}, Ordinal: 22, Tags: Tags{}},
-				{Name: "PE", Type: &Pointer{Value: &DefinedType{name: "E", Decl: enums[0]}}, Ordinal: 23, Tags: Tags{}},
-				{Name: "E", Type: &DefinedType{name: "E", Decl: enums[0]}, Ordinal: 24, Tags: Tags{}},
+				{Name: "Raw", Type: &Raw{}, Ordinal: 16, Tags: Tags{}},
+				{Name: "AI", Type: &Array{Value: &Int{}}, Ordinal: 17, Tags: Tags{}},
+				{Name: "AF", Type: &Array{Value: &Float{Bits: 32}}, Ordinal: 18, Tags: Tags{}},
+				{Name: "AS", Type: &Array{Size: 2, Value: &String{}}, Ordinal: 19, Tags: Tags{}},
+				{Name: "MSS", Type: &Map{Key: &String{}, Value: &String{}}, Ordinal: 20, Tags: Tags{}},
+				{Name: "MFI", Type: &Map{Key: &Float{Bits: 64}, Value: &Int{}}, Ordinal: 21, Tags: Tags{}},
+				{Name: "T", Type: &Time{}, Ordinal: 22, Tags: Tags{}},
+				{Name: "PS", Type: &Pointer{Value: &String{}}, Ordinal: 23, Tags: Tags{}},
+				{Name: "PE", Type: &Pointer{Value: &DefinedType{name: "E", Decl: enums[0]}}, Ordinal: 24, Tags: Tags{}},
+				{Name: "E", Type: &DefinedType{name: "E", Decl: enums[0]}, Ordinal: 25, Tags: Tags{}},
 			},
 		},
 	}
 
 	unions := [...]*Union{
 		{
-			pos:  Pos{Line: 55, Column: 2},
+			pos:  Pos{Line: 56, Column: 2},
 			Doc:  []string{"my union doc comment"},
 			Name: "U",
 			Branches: []Branch{
@@ -200,13 +202,14 @@ func TestParseWithError(t *testing.T) {
 		E **int "3"                            // pointer pointer
 		F *[]int "4"                           // pointer to array
 		G *map[string]int "5"                  // pointer to map
-		H [][]int "6"                          // multidimensional array
-		I [0]string "7"                        // invalid array size
-		J [-2]string "8"                       // invalid array size
-		K map[{]string "9"                     // unexpected token '{'
-		K int "10"                             // duplicate struct field
-		L string "10"                          // duplicate ordinal
-		M X "11"                               // undefined type
+		H *raw "6"                             // pointer to raw
+		I [][]int "7"                          // multidimensional array
+		J [0]string "8"                        // invalid array size
+		K [-2]string "9"                       // invalid array size
+		L map[{]string "10"                     // unexpected token '{'
+		L int "11"                             // duplicate struct field
+		M string "11"                          // duplicate ordinal
+		N X "12"                               // undefined type
 	}
 
 	enum T {}                                  // type redeclared
@@ -231,6 +234,7 @@ func TestParseWithError(t *testing.T) {
 		int64        "9"                       // duplicate numeric branch
 		float32      "10"                      // duplicate numeric branch
 		F            "11"                      // duplicate numeric branch
+		raw          "12"                      // raw branch
 	}
 
 	union V {}                                 // no branches
@@ -252,6 +256,7 @@ func TestParseWithError(t *testing.T) {
 		`pointer type **int not supported`,
 		`pointer type *[]int not supported`,
 		`pointer type *map[string]int not supported`,
+		`pointer type *raw not supported`,
 		`array type [][]int not supported`,
 		`invalid array size 0`,
 		`invalid array size -2`,
@@ -261,8 +266,8 @@ func TestParseWithError(t *testing.T) {
 		`undefined type X`,
 		`undefined type Y`,
 		// type validation errors
-		`duplicate field K in struct T`,
-		`duplicate ordinal 10 for field L in struct T`,
+		`duplicate field L in struct T`,
+		`duplicate ordinal 11 for field M in struct T`,
 		`duplicate enumerator E1 in enum E`,
 		`pointer branch *E in union U`,
 		`duplicate branch E in union U`,
@@ -272,6 +277,7 @@ func TestParseWithError(t *testing.T) {
 		`duplicate numeric branch int64 in union U`,
 		`duplicate numeric branch float32 in union U`,
 		`duplicate numeric branch F in union U`,
+		`raw branch in union U`,
 		`union V does not contain a branch`,
 		`union branch U in union W`,
 	}

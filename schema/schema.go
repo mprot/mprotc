@@ -157,6 +157,8 @@ func (u *Union) validate(r errorReporter) {
 				r.errorf("duplicate numeric branch %s in union %s", typ.Name(), u.Name)
 			}
 			hasNumericBranch = true
+		case *Raw:
+			r.errorf("raw branch in union %s", u.Name)
 		case *DefinedType:
 			if _, has := branches[typeid]; has {
 				r.errorf("duplicate branch %s in union %s", typeid, u.Name)

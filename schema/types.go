@@ -121,6 +121,18 @@ func (m *Map) typeid() string {
 	return "map"
 }
 
+// Raw describes an blob type containing an encoded value.
+type Raw struct{}
+
+// Name implements the Type interface.
+func (r *Raw) Name() string {
+	return "raw"
+}
+
+func (r *Raw) typeid() string {
+	return "raw"
+}
+
 // Time describes a time data type.
 type Time struct{}
 
