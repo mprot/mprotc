@@ -133,6 +133,11 @@ func printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		p.Println(indent, `	return err`)
 		p.Println(indent, `}`)
 
+	case *schema.Bytes:
+		p.Println(indent, `if `, specifier, `, err = r.ReadBytes(nil); err != nil {`)
+		p.Println(indent, `	return err`)
+		p.Println(indent, `}`)
+
 	default:
 		typ := gen.TitleFirstWord(t.Name())
 		p.Println(indent, `if `, specifier, `, err = r.Read`, typ, `(); err != nil {`)
