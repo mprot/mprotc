@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mprot/mprotc/opts"
@@ -33,7 +34,8 @@ func (c *command) exec(opts *opts.Opts, inputFiles []string) error {
 	})
 
 	for i, schema := range schemas {
-		if err := gen.Generate(schema, inputFiles[i]); err != nil {
+		targetFile := filepath.Base(inputFiles[i])
+		if err := gen.Generate(schema, targetFile); err != nil {
 			return err
 		}
 	}

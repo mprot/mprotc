@@ -31,7 +31,7 @@ func newCodeGenerator(g generator, opts generatorOptions) codeGenerator {
 	}
 }
 
-func (g *codeGenerator) Generate(s *schema.Schema, inputFilename string) error {
+func (g *codeGenerator) Generate(s *schema.Schema, targetFilename string) error {
 	if !g.deprecated {
 		g.removeDeprecated(s)
 	}
@@ -39,7 +39,7 @@ func (g *codeGenerator) Generate(s *schema.Schema, inputFilename string) error {
 		s.Package = g.packageName
 	}
 
-	w := gen.NewFileWriter(g.outputPath, inputFilename)
+	w := gen.NewFileWriter(g.outputPath, targetFilename)
 	g.generator.Generate(w, s)
 	return w.Flush()
 }
