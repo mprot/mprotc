@@ -13,11 +13,13 @@ var cli = commands{
 	"go": command{
 		options: func(opts *opts.Opts) {
 			opts.AddBool("--scoped-enums", false, "Scope the enumerators of the generated enums.")
+			opts.AddBool("--unwrap-union", false, "Unwrap union types of the generated struct fields.")
 		},
 
 		generator: func(opts *opts.Opts) generator {
 			return golang.NewGenerator(golang.Options{
 				ScopedEnums: opts.Bool("scoped-enums"),
+				UnwrapUnion: opts.Bool("unwrap-union"),
 			})
 		},
 	},

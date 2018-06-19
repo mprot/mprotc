@@ -10,6 +10,7 @@ import (
 // Options holds all the options for the Go language generator.
 type Options struct {
 	ScopedEnums bool // scope enumerators?
+	UnwrapUnion bool // unwrap union types in struct fields?
 }
 
 // Generator represents a code generator for the Go programming language.
@@ -25,6 +26,9 @@ func NewGenerator(opts Options) *Generator {
 	return &Generator{
 		enum: enumGenerator{
 			scoped: opts.ScopedEnums,
+		},
+		strct: structGenerator{
+			unwrapUnion: opts.UnwrapUnion,
 		},
 	}
 }

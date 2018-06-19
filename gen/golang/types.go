@@ -162,3 +162,11 @@ func alnumOnly(s string) string {
 	}
 	return buf.String()
 }
+
+func isUnion(t schema.Type) bool {
+	dt, ok := t.(*schema.DefinedType)
+	if ok {
+		_, ok = dt.Decl.(*schema.Union)
+	}
+	return ok
+}

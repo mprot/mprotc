@@ -29,6 +29,9 @@ Additional Options:
   --scoped-enums
       Scope the enumerators of the generated enums, i.e. prefix the enumerator names with the enum name.
       The default is false.
+  --unwrap-union
+      Unwrap the union types of the generated struct fields, i.e. use an empty interface as the field type.
+      The default is false.
 ```
 * [JavaScript/TypeScript](gen/js/README.md):
 ```
