@@ -9,14 +9,14 @@ func TestErrorString(t *testing.T) {
 	}
 }
 
-func TestError(t *testing.T) {
-	err := &Error{
-		Err: errorString("foobar"),
+func TestPosError(t *testing.T) {
+	err := Error{
 		Pos: Pos{
 			File:   "file",
 			Line:   2,
 			Column: 4,
 		},
+		Text: "foobar",
 	}
 
 	if msg := err.Error(); msg != "file:2:4: foobar" {
@@ -34,7 +34,7 @@ func TestErrorList(t *testing.T) {
 		t.Errorf("unexpected error message: %q", msg)
 	}
 
-	errs.add(errorString("foo"), Pos{Line: 2, Column: 4})
+	errs.add(Pos{Line: 2, Column: 4}, "foo")
 	if err := errs.err(); err == nil {
 		t.Error("expected error, got none")
 	}
@@ -42,16 +42,19 @@ func TestErrorList(t *testing.T) {
 		t.Errorf("unexpected error message: %q", msg)
 	}
 
-	errs.add(errorString("bar"), Pos{Line: 3, Column: 1})
+	errs.add(Pos{Line: 3, Column: 1}, "bar")
 	if err := errs.err(); err == nil {
 		t.Error("expected error, got none")
 	}
-	if msg := errs.Error(); msg != "2:4: foo (and 1 more errors)" {
+	if msg := errs.Error(); msg != "2:4: foo (and 1 more error)" {
 		t.Errorf("unexpected error message: %q", msg)
 	}
 
-	errs.clear()
-	if len(errs) != 0 {
-		t.Errorf("unexpected number of errors: %d", len(errs))
+	errs.add(Pos{Line: 4, Column: 3}, "baz")
+	if err := errs.err(); err == nil {
+		t.Error("expected error, got none")
+	}
+	if msg := errs.Error(); msg != "2:4: foo (and 2 more errors)" {
+		t.Errorf("unexpected error message: %q", msg)
 	}
 }

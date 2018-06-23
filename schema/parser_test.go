@@ -11,6 +11,9 @@ func TestParse(t *testing.T) {
 	// package comment
 	package foo
 
+	import "external1.mprot"
+	import ext "external2.mprot"
+
 	// line comment
 
 	const CS = "foo"
@@ -49,6 +52,8 @@ func TestParse(t *testing.T) {
 		PS   *string            ` + "`" + `23` + "`" + `
 		PE  *E                  ` + "`" + `24` + "`" + `
 		E    E                  ` + "`" + `25` + "`" + `
+		X1   external1.X        ` + "`" + `26` + "`" + `
+		X2   ext.X              ` + "`" + `27` + "`" + `
 	}
 	
 	; // empty statement
@@ -70,21 +75,34 @@ func TestParse(t *testing.T) {
 	}
 	`
 
+	imports := [...]*Import{
+		{
+			pos:  Pos{Line: 5, Column: 2},
+			Path: "external1.mprot",
+			Name: "external1",
+		},
+		{
+			pos:  Pos{Line: 6, Column: 2},
+			Path: "external2.mprot",
+			Name: "ext",
+		},
+	}
+
 	consts := [...]*Const{
 		{
-			pos:   Pos{Line: 7, Column: 2},
+			pos:   Pos{Line: 10, Column: 2},
 			Name:  "CS",
 			Type:  &String{},
 			Value: "foo",
 		},
 		{
-			pos:   Pos{Line: 8, Column: 2},
+			pos:   Pos{Line: 11, Column: 2},
 			Name:  "CI",
 			Type:  &Int{Bits: 64},
 			Value: "7",
 		},
 		{
-			pos:   Pos{Line: 10, Column: 2},
+			pos:   Pos{Line: 13, Column: 2},
 			Doc:   []string{"constant doc comment"},
 			Name:  "CF",
 			Type:  &Float{Bits: 64},
@@ -94,7 +112,7 @@ func TestParse(t *testing.T) {
 
 	enums := [...]*Enum{
 		{
-			pos:  Pos{Line: 49, Column: 2},
+			pos:  Pos{Line: 54, Column: 2},
 			Doc:  []string{"my enum", "doc comment"},
 			Name: "E",
 			Enumerators: []Enumerator{
@@ -107,7 +125,7 @@ func TestParse(t *testing.T) {
 
 	structs := [...]*Struct{
 		{
-			pos:  Pos{Line: 17, Column: 2},
+			pos:  Pos{Line: 20, Column: 2},
 			Doc:  []string{"\t\tmy struct", "\t\tdoc comment", "", "another doc line"},
 			Name: "S",
 			Fields: []Field{
@@ -136,13 +154,15 @@ func TestParse(t *testing.T) {
 				{Name: "PS", Type: &Pointer{Value: &String{}}, Ordinal: 23, Tags: Tags{}},
 				{Name: "PE", Type: &Pointer{Value: &DefinedType{name: "E", Decl: enums[0]}}, Ordinal: 24, Tags: Tags{}},
 				{Name: "E", Type: &DefinedType{name: "E", Decl: enums[0]}, Ordinal: 25, Tags: Tags{}},
+				{Name: "X1", Type: &DefinedType{pkg: "external1", name: "X", Decl: imports[0]}, Ordinal: 26, Tags: Tags{}},
+				{Name: "X2", Type: &DefinedType{pkg: "ext", name: "X", Decl: imports[1]}, Ordinal: 27, Tags: Tags{}},
 			},
 		},
 	}
 
 	unions := [...]*Union{
 		{
-			pos:  Pos{Line: 56, Column: 2},
+			pos:  Pos{Line: 61, Column: 2},
 			Doc:  []string{"my union doc comment"},
 			Name: "U",
 			Branches: []Branch{
@@ -154,6 +174,16 @@ func TestParse(t *testing.T) {
 		},
 	}
 
+	expectedPackage := &Package{
+		pos:  Pos{Line: 3, Column: 2},
+		Name: "foo",
+	}
+
+	expectedImports := map[string]*Import{
+		imports[0].Name: imports[0],
+		imports[1].Name: imports[1],
+	}
+
 	expectedDecls := [...]Decl{
 		consts[0],
 		consts[1],
@@ -163,23 +193,28 @@ func TestParse(t *testing.T) {
 		unions[0],
 	}
 
-	schema, err := Parse(strings.NewReader(input))
+	var p parser
+	file, err := p.Parse(strings.NewReader(input), "")
 	if err != nil {
 		t.Fatalf("unexpected parsing error: %v", err)
 	}
 
-	if !reflect.DeepEqual(schema.Doc, []string{"package comment"}) {
-		t.Errorf("unexpected package doc: %+v", schema.Doc)
+	if !reflect.DeepEqual(file.Doc, []string{"package comment"}) {
+		t.Errorf("unexpected package doc: %+v", file.Doc)
 	}
 
-	if schema.Package != "foo" {
-		t.Errorf("unexpected package name: %q", schema.Package)
+	if !reflect.DeepEqual(file.Package, expectedPackage) {
+		t.Errorf("unexpected package name: %+v", file.Package)
 	}
 
-	if len(schema.Decls) != len(expectedDecls) {
-		t.Errorf("unexpected number of declarations: %d", len(schema.Decls))
+	if !reflect.DeepEqual(file.Imports, expectedImports) {
+		t.Errorf("unexpected imports: %#v", file.Imports)
+	}
+
+	if len(file.Decls) != len(expectedDecls) {
+		t.Errorf("unexpected number of declarations: %d", len(file.Decls))
 	} else {
-		for i, decl := range schema.Decls {
+		for i, decl := range file.Decls {
 			if !reflect.DeepEqual(decl, expectedDecls[i]) {
 				t.Errorf("unexpected declaration: %#v", decl)
 			}
@@ -187,12 +222,16 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestParseWithError(t *testing.T) {
+func TestParserErrors(t *testing.T) {
 	const input = `
 	package foo
-	*                 // unexpected token "*"
-	const Const = abc // unexpected "abc"
-	strut S {}        // unexpected token "strut"
+	import ""                     // invalid import path ""
+	import ".mprot"               // invalid import path ".mprot"
+	import ext "external1.mprot"
+	import ext "external2.mprot"  // import "ext" already defined
+	*                             // unexpected token "*"
+	const Const = abc             // unexpected "abc"
+	strut S {}                    // unexpected token "strut"
 
 	struct T {
 		A int 123                              // unexpected token "123"
@@ -206,10 +245,11 @@ func TestParseWithError(t *testing.T) {
 		I [][]int "7"                          // multidimensional array
 		J [0]string "8"                        // invalid array size
 		K [-2]string "9"                       // invalid array size
-		L map[{]string "10"                     // unexpected token '{'
+		L map[{]string "10"                    // unexpected token '{'
 		L int "11"                             // duplicate struct field
 		M string "11"                          // duplicate ordinal
 		N X "12"                               // undefined type
+		O int                                  // missing tag string
 	}
 
 	enum T {}                                  // type redeclared
@@ -217,6 +257,7 @@ func TestParseWithError(t *testing.T) {
 	enum E {
 		E1 "1"
 		E1 "2"                                 // duplicate enumerator
+		E2                                     // missing tag string
 	}
 
 	enum F {}
@@ -226,7 +267,7 @@ func TestParseWithError(t *testing.T) {
 		E            "2"
 		E            "3"                       // duplicate branch
 		T            "3"                       // duplicate ordinal
-		Y            "4"
+		Y            "4"                       // undefined type
 		[]E          "5"
 		[]T          "6"                       // duplicate branch (array)
 		map[string]E "7"
@@ -235,6 +276,7 @@ func TestParseWithError(t *testing.T) {
 		float32      "10"                      // duplicate numeric branch
 		F            "11"                      // duplicate numeric branch
 		raw          "12"                      // raw branch
+		ext.X                                  // missing tag string
 	}
 
 	union V {}                                 // no branches
@@ -246,6 +288,9 @@ func TestParseWithError(t *testing.T) {
 
 	expectedErrors := [...]string{
 		// parse errors
+		`invalid import path ""`,
+		`invalid import path ".mprot"`,
+		`import "ext" already defined`,
 		`unexpected token "*"`,
 		`unexpected token "abc" in constant declaration`,
 		`unexpected identifier "strut"`,
@@ -261,7 +306,10 @@ func TestParseWithError(t *testing.T) {
 		`invalid array size 0`,
 		`invalid array size -2`,
 		`unexpected token "{"`,
-		`type T redeclared (see position 7:2)`,
+		`missing tag string`,
+		`type T redeclared (see position 11:2)`,
+		`missing tag string`,
+		`missing tag string`,
 		// resolve errors
 		`undefined type X`,
 		`undefined type Y`,
@@ -282,7 +330,8 @@ func TestParseWithError(t *testing.T) {
 		`union branch U in union W`,
 	}
 
-	_, err := Parse(strings.NewReader(input))
+	var p parser
+	_, err := p.Parse(strings.NewReader(input), "")
 	if err == nil {
 		t.Fatal("unexpected parse error, got none")
 	}
@@ -294,11 +343,9 @@ func TestParseWithError(t *testing.T) {
 		t.Errorf("unexpected number of errors: %d", len(errs))
 		t.FailNow()
 	} else {
-		for i, e := range errs[:len(expectedErrors)] {
-			if err, ok := e.(Error); !ok {
-				t.Errorf("unexpected error type: %T", e)
-			} else if msg := err.Err.Error(); msg != expectedErrors[i] {
-				t.Errorf("unexpected error message: %s", msg)
+		for i, err := range errs[:len(expectedErrors)] {
+			if err.Text != expectedErrors[i] {
+				t.Errorf("unexpected error message: %s", err.Text)
 			}
 		}
 	}

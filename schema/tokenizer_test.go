@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestTokenizerInit(t *testing.T) {
+func TestTokenizerReset(t *testing.T) {
 	var tk tokenizer
-	tk.Init(strings.NewReader("foobar"), "", 1024)
+	tk.Reset(strings.NewReader("foobar"), "", 1024)
 
 	if tk.rdoff != 1 {
 		t.Errorf("unexpected initial read offset: %d", tk.rdoff)
@@ -26,7 +26,7 @@ func TestTokenizerInit(t *testing.T) {
 		t.Errorf("unexpected initial token position: %+v", tk.tokpos)
 	}
 
-	tk.Init(strings.NewReader("\ufefffoobar"), "", 1024)
+	tk.Reset(strings.NewReader("\ufefffoobar"), "", 1024)
 	if tk.rdoff != 4 {
 		t.Errorf("unexpected initial read offset: %d", tk.rdoff)
 	}
@@ -57,8 +57,10 @@ func TestTokenizerTokens(t *testing.T) {
 		{rbrace, "}"},
 		{asterisk, "*"},
 		{assign, "="},
+		{period, "."},
 
-		{pkg, "package"},
+		{packg, "package"},
+		{imprt, "import"},
 		{constant, "const"},
 		{enum, "enum"},
 		{strct, "struct"},
@@ -96,6 +98,7 @@ func TestTokenizerTokens(t *testing.T) {
 		{floatlit, "2.71828182"},
 		{floatlit, "7e0"},
 		{floatlit, "7e4"},
+		{floatlit, "7.e4"},
 		{floatlit, "1e+123"},
 		{floatlit, "1e-123"},
 		{floatlit, "2.71828e-1000"},
@@ -106,6 +109,7 @@ func TestTokenizerTokens(t *testing.T) {
 		{floatlit, "-2.71828182"},
 		{floatlit, "-7e0"},
 		{floatlit, "-7e4"},
+		{floatlit, "-7.e4"},
 		{floatlit, "-1e+123"},
 		{floatlit, "-1e-123"},
 		{floatlit, "-2.71828e-1000"},
@@ -157,7 +161,7 @@ func TestTokenizerTokens(t *testing.T) {
 				// test line comments without trailing newline
 				test.literal = strings.TrimSuffix(test.literal, "\n")
 			}
-			tk.Init(strings.NewReader(test.literal), "", 1024)
+			tk.Reset(strings.NewReader(test.literal), "", 1024)
 			testLit(t, test, "single", pos)
 
 			// expect eof
@@ -181,7 +185,7 @@ func TestTokenizerTokens(t *testing.T) {
 			buf.WriteString(newline)
 		}
 
-		tk.Init(&buf, "", 1024)
+		tk.Reset(&buf, "", 1024)
 		pos := Pos{Line: 1, Column: 2}
 		for _, test := range tests {
 			testLit(t, test, "all", pos)
@@ -248,7 +252,7 @@ func TestTokenizerWithErrors(t *testing.T) {
 
 	var tk tokenizer
 	for _, test := range tests {
-		tk.Init(strings.NewReader(test.literal), "", 1024)
+		tk.Reset(strings.NewReader(test.literal), "", 1024)
 
 		tok, _, _ := tk.Next()
 		if tok != invalid {
@@ -267,7 +271,7 @@ func TestTokenizerNextAfterEOF(t *testing.T) {
 	expectedPos := Pos{Line: 1, Column: 1}
 
 	var tk tokenizer
-	tk.Init(strings.NewReader(expectedLit), "", 1024)
+	tk.Reset(strings.NewReader(expectedLit), "", 1024)
 
 	tok, lit, pos := tk.Next()
 	if tok != ident {
@@ -304,7 +308,7 @@ func TestTokenizerBufferResize(t *testing.T) {
 	expectedPos := Pos{Line: 1, Column: 1}
 
 	var tk tokenizer
-	tk.Init(strings.NewReader(alphabet), "", initialBufSize)
+	tk.Reset(strings.NewReader(alphabet), "", initialBufSize)
 
 	tok, lit, pos := tk.Next()
 	if tok != ident {

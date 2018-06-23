@@ -12,12 +12,15 @@ Description:
   The mprotc tool compiles schema definition files into source code of the specified programming language.
 
   The following options are available:
+    --root <path>
+        Specify the root path for the schema files. The given schema files are interpreted relative to this
+        directory. The default is the current directory.
     --out <path>
         Specify the output path for the generated code. The default is the current directory.
     --deprecated
         Include the deprecated fields in the generated code.
-    --package <package name>
-        Override the schema's package name.
+    --dryrun
+        Print the names of generated files only instead of writing the files.
 ```
 
 ## Supported Languages
@@ -26,6 +29,8 @@ Description:
 mprotc go [options] [schema-file ...]
 
 Additional Options:
+  --import-root
+      Import root path for all schema imports. The default is the path specified by the output directory.
   --scoped-enums
       Scope the enumerators of the generated enums, i.e. prefix the enumerator names with the enum name.
       The default is false.

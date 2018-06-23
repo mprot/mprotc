@@ -18,13 +18,15 @@ const (
 	rbrace   token = "}"
 	asterisk token = "*"
 	assign   token = "="
+	period   token = "."
 	ident    token = "ident"
 	strlit   token = "string"
 	intlit   token = "int"
 	floatlit token = "float"
 	comment  token = "comment"
 	// keywords
-	pkg      token = "package"
+	packg    token = "package"
+	imprt    token = "import"
 	constant token = "const"
 	enum     token = "enum"
 	strct    token = "struct"
@@ -50,7 +52,7 @@ type tokenizer struct {
 	tokpos Pos // current token position in r
 }
 
-func (t *tokenizer) Init(r io.Reader, filename string, bufsize int) {
+func (t *tokenizer) Reset(r io.Reader, filename string, bufsize int) {
 	t.r = r
 	t.rdoff = 0
 	t.implicitSemi = false
@@ -95,9 +97,9 @@ func (t *tokenizer) Next() (token, string, Pos) {
 		}
 		return tok, lit, pos
 	}
-	if t.ch == '-' || t.ch == '.' || isDigit(t.ch) {
+	if t.ch == '-' || isDigit(t.ch) {
 		implicitSemi = true
-		return t.scanNumber()
+		return t.scanNumber(false)
 	}
 
 	switch t.ch {
@@ -141,6 +143,13 @@ func (t *tokenizer) Next() (token, string, Pos) {
 	case '=':
 		t.nextChar()
 		return t.token(assign)
+	case '.':
+		t.nextChar()
+		if isDigit(t.ch) {
+			implicitSemi = true
+			return t.scanNumber(true)
+		}
+		return t.token(period)
 	case '/':
 		if t.implicitSemi {
 			return semicol, "\n", t.tokpos
@@ -173,38 +182,40 @@ func (t *tokenizer) scanIdentifier() (token, string, Pos) {
 	return t.token(ident)
 }
 
-func (t *tokenizer) scanNumber() (token, string, Pos) {
-	if t.ch == '-' {
-		t.nextChar()
-	}
-
-	if t.ch == '0' {
-		t.nextChar()
-		if t.ch == 'x' || t.ch == 'X' {
-			// hex
+func (t *tokenizer) scanNumber(sawPeriod bool) (token, string, Pos) {
+	if !sawPeriod {
+		if t.ch == '-' {
 			t.nextChar()
-			if t.skipDigits(16) == 0 {
-				return t.invalidToken(errInvalidHexNumber, false)
-			}
-			return t.token(intlit)
 		}
 
-		t.skipDigits(8)
-		octal := t.skipDigits(10) == 0
-		if t.ch != '.' && t.ch != 'e' && t.ch != 'E' {
-			// oct
-			if !octal {
-				return t.invalidToken(errInvalidOctNumber, false)
+		if t.ch == '0' {
+			t.nextChar()
+			if t.ch == 'x' || t.ch == 'X' {
+				// hex
+				t.nextChar()
+				if t.skipDigits(16) == 0 {
+					return t.invalidToken(errInvalidHexNumber, false)
+				}
+				return t.token(intlit)
 			}
-			return t.token(intlit)
+
+			t.skipDigits(8)
+			octal := t.skipDigits(10) == 0
+			if t.ch != '.' && t.ch != 'e' && t.ch != 'E' {
+				// oct
+				if !octal {
+					return t.invalidToken(errInvalidOctNumber, false)
+				}
+				return t.token(intlit)
+			}
+		} else {
+			t.skipDigits(10)
 		}
-	} else {
-		t.skipDigits(10)
 	}
 
 	// dec or float
 	tok := intlit
-	if t.ch == '.' {
+	if sawPeriod || t.ch == '.' {
 		tok = floatlit
 		t.nextChar()
 		t.skipDigits(10)
@@ -449,7 +460,9 @@ func isDigit(ch rune) bool {
 func lookupKeyword(lit string) token {
 	switch lit {
 	case "package":
-		return pkg
+		return packg
+	case "import":
+		return imprt
 	case "const":
 		return constant
 	case "enum":

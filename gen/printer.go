@@ -31,8 +31,8 @@ func (p *printer) Println(args ...interface{}) {
 	p.WriteByte('\n')
 }
 
-func (p *printer) writeFile(filename string) error {
-	if dir := filepath.Dir(filename); dir != "." {
+func (p *printer) writeToFile(filename string) error {
+	if dir := filepath.Dir(filename); dir != "." && dir != string(filepath.Separator) {
 		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 			return err
 		}

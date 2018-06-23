@@ -4,11 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/mprot/mprotc/opts"
-	"github.com/mprot/mprotc/schema"
 )
 
 const binName = "mprotc"
@@ -18,28 +16,14 @@ type command struct {
 	generator func(opts *opts.Opts) generator
 }
 
-func (c *command) exec(opts *opts.Opts, inputFiles []string) error {
-	schemas := make([]*schema.Schema, len(inputFiles))
-	for i, inputFile := range inputFiles {
-		var err error
-		if schemas[i], err = schema.ParseFile(inputFile); err != nil {
-			return err
-		}
-	}
-
+func (c *command) exec(opts *opts.Opts, globPatterns []string) error {
 	gen := newCodeGenerator(c.generator(opts), generatorOptions{
-		outputPath:  opts.String("out"),
-		deprecated:  opts.Bool("deprecated"),
-		packageName: opts.String("package"),
+		rootPath:   opts.String("root"),
+		outputPath: opts.String("out"),
+		deprecated: opts.Bool("deprecated"),
+		dryRun:     opts.Bool("dryrun"),
 	})
-
-	for i, schema := range schemas {
-		targetFile := filepath.Base(inputFiles[i])
-		if err := gen.Generate(schema, targetFile); err != nil {
-			return err
-		}
-	}
-	return nil
+	return gen.Generate(globPatterns)
 }
 
 func (c *command) registerOpts(opts *opts.Opts) {
@@ -52,9 +36,10 @@ type commands map[string]command // language => command
 
 func (c commands) Exec(language string, args []string) error {
 	opts := opts.New()
+	opts.AddString("--root <path>", ".", "Specify the root path of the mprot schema files.")
 	opts.AddString("--out <path>", ".", "Specify the output path for the generated code.")
 	opts.AddBool("--deprecated", false, "Include the deprecated fields in the generated code.")
-	opts.AddString("--package <package name>", "", "Override the schema's package name.")
+	opts.AddBool("--dryrun", false, "Print the names of the generated files only.")
 
 	cmd, has := c[language]
 	if !has {

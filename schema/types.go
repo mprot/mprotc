@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Type defines an interface for the various types supported by the
@@ -161,6 +162,7 @@ func (p *Pointer) typeid() string {
 
 // DefinedType describes a user defined type.
 type DefinedType struct {
+	pkg  string // empty for local
 	name string
 	Decl Decl
 }
@@ -186,9 +188,32 @@ func DeclType(decl Decl) *DefinedType {
 	}
 }
 
+func newDefinedType(name string, decl Decl) *DefinedType {
+	pkg := ""
+	if idx := strings.IndexByte(name, '.'); idx >= 0 {
+		pkg = name[:idx]
+		name = name[idx+1:]
+	}
+
+	return &DefinedType{
+		pkg:  pkg,
+		name: name,
+		Decl: decl,
+	}
+}
+
+// Imported reports if the defined type is imported from
+// another file.
+func (t *DefinedType) Imported() bool {
+	return t.pkg != ""
+}
+
 // Name implements the Type interface.
 func (t *DefinedType) Name() string {
-	return t.name
+	if t.pkg == "" {
+		return t.name
+	}
+	return t.pkg + "." + t.name
 }
 
 func (t *DefinedType) typeid() string {

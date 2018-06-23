@@ -7,32 +7,32 @@ import (
 
 type unionGenerator struct{}
 
-func (g *unionGenerator) Generate(p gen.Printer, u *schema.Union) {
-	g.printDecl(p, u.Name, u.Branches, u.Doc)
+func (g *unionGenerator) Generate(p gen.Printer, u *schema.Union, types *typegen) {
+	g.printDecl(p, u.Name, u.Branches, u.Doc, types)
 	p.Println()
-	g.printEncodeFunc(p, u.Name, u.Branches)
+	g.printEncodeFunc(p, u.Name, u.Branches, types)
 	p.Println()
-	g.printDecodeFunc(p, u.Name, u.Branches)
+	g.printDecodeFunc(p, u.Name, u.Branches, types)
 }
 
-func (g *unionGenerator) printDecl(p gen.Printer, name string, branches []schema.Branch, doc []string) {
-	types := make([]schema.Type, 0, len(branches))
+func (g *unionGenerator) printDecl(p gen.Printer, name string, branches []schema.Branch, doc []string, types *typegen) {
+	branchTypes := make([]schema.Type, 0, len(branches))
 	for _, b := range branches {
-		types = append(types, b.Type)
+		branchTypes = append(branchTypes, b.Type)
 	}
 
 	var typenames string
-	switch n := len(types); n {
+	switch n := len(branchTypes); n {
 	case 0:
 	case 1:
-		typenames = typename(types[0])
+		typenames = types.typename(branchTypes[0])
 	case 2:
-		typenames = typename(types[0]) + " or " + typename(types[1])
+		typenames = types.typename(branchTypes[0]) + " or " + types.typename(branchTypes[1])
 	default:
 		for i := 0; i < n-1; i++ {
-			typenames += typename(types[i]) + ", "
+			typenames += types.typename(branchTypes[i]) + ", "
 		}
-		typenames += "or " + typename(types[n-1])
+		typenames += "or " + types.typename(branchTypes[n-1])
 	}
 
 	printDoc(p, doc, name+" union.")
@@ -41,7 +41,7 @@ func (g *unionGenerator) printDecl(p gen.Printer, name string, branches []schema
 	p.Println(`}`)
 }
 
-func (g *unionGenerator) printEncodeFunc(p gen.Printer, name string, branches []schema.Branch) {
+func (g *unionGenerator) printEncodeFunc(p gen.Printer, name string, branches []schema.Branch, types *typegen) {
 	p.Println(`// EncodeMsgpack implements the Encoder interface for `, name, `.`)
 	p.Println(`func (o `, name, `) EncodeMsgpack(w *msgpack.Writer) (err error) {`)
 	p.Println(`	if err = w.WriteArrayHeader(2); err != nil {`)
@@ -50,11 +50,11 @@ func (g *unionGenerator) printEncodeFunc(p gen.Printer, name string, branches []
 	p.Println(`	switch v := o.Value.(type) {`)
 
 	for _, b := range branches {
-		p.Println(`	case `, typename(b.Type), `:`)
+		p.Println(`	case `, types.typename(b.Type), `:`)
 		p.Println(`		if err = w.WriteInt64(`, b.Ordinal, `); err != nil {`)
 		p.Println(`			return err`)
 		p.Println(`		}`)
-		printEncodeCall(p, b.Type, "v", "\t\t")
+		types.printEncodeCall(p, b.Type, "v", "\t\t")
 	}
 
 	p.Println(`	default:`)
@@ -64,7 +64,7 @@ func (g *unionGenerator) printEncodeFunc(p gen.Printer, name string, branches []
 	p.Println(`}`)
 }
 
-func (g *unionGenerator) printDecodeFunc(p gen.Printer, name string, branches []schema.Branch) {
+func (g *unionGenerator) printDecodeFunc(p gen.Printer, name string, branches []schema.Branch, types *typegen) {
 	p.Println(`// DecodeMsgpack implements the Decoder interface for `, name, `.`)
 	p.Println(`func (o *`, name, `) DecodeMsgpack(r *msgpack.Reader) error {`)
 	p.Println(`	if err := r.ReadArrayHeaderWithSize(2); err != nil {`)
@@ -77,10 +77,10 @@ func (g *unionGenerator) printDecodeFunc(p gen.Printer, name string, branches []
 	p.Println(`	switch ord {`)
 
 	for _, b := range branches {
-		typ := typename(b.Type)
+		typ := types.typename(b.Type)
 		p.Println(`	case `, b.Ordinal, `: // `, typ)
 		p.Println(`		var v `, typ)
-		printDecodeCall(p, b.Type, "v", "\t\t")
+		types.printDecodeCall(p, b.Type, "v", "\t\t")
 		p.Println(`		o.Value = v`)
 	}
 

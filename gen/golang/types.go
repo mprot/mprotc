@@ -2,6 +2,7 @@ package golang
 
 import (
 	"bytes"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -9,20 +10,30 @@ import (
 	"github.com/mprot/mprotc/schema"
 )
 
-func typename(t schema.Type) string {
-	switch t.(type) {
+type typegen struct {
+	imports map[string]*schema.Import // import name => import
+}
+
+func (g *typegen) typename(t schema.Type) string {
+	switch t := t.(type) {
 	case *schema.Bytes:
 		return "[]byte"
 	case *schema.Raw:
 		return "msgpack.Raw"
 	case *schema.Time:
 		return "time.Time"
-	default:
-		return t.Name()
+	case *schema.DefinedType:
+		if t.Imported() {
+			imp := t.Decl.(*schema.Import)
+			if _, has := g.imports[imp.Name]; !has {
+				return strings.TrimPrefix(t.Name(), imp.Name+".")
+			}
+		}
 	}
+	return t.Name()
 }
 
-func printEncodeCall(p gen.Printer, t schema.Type, specifier string, indent string) {
+func (g *typegen) printEncodeCall(p gen.Printer, t schema.Type, specifier string, indent string) {
 	switch t := t.(type) {
 	case *schema.Pointer:
 		p.Println(indent, `if `, specifier, ` == nil {`)
@@ -30,7 +41,7 @@ func printEncodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		p.Println(indent, `		return err`)
 		p.Println(indent, `	}`)
 		p.Println(indent, `} else {`)
-		printEncodeCall(p, t.Value, "*"+specifier, indent+"\t")
+		g.printEncodeCall(p, t.Value, "*"+specifier, indent+"\t")
 		p.Println(indent, `}`)
 
 	case *schema.Array:
@@ -38,7 +49,7 @@ func printEncodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		p.Println(indent, `	return err`)
 		p.Println(indent, `}`)
 		p.Println(indent, `for _, e := range `, specifier, ` {`)
-		printEncodeCall(p, t.Value, "e", indent+"\t")
+		g.printEncodeCall(p, t.Value, "e", indent+"\t")
 		p.Println(indent, `}`)
 
 	case *schema.Map:
@@ -46,8 +57,8 @@ func printEncodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		p.Println(indent, `	return err`)
 		p.Println(indent, `}`)
 		p.Println(indent, `for k, v := range `, specifier, ` {`)
-		printEncodeCall(p, t.Key, "k", indent+"\t")
-		printEncodeCall(p, t.Value, "v", indent+"\t")
+		g.printEncodeCall(p, t.Key, "k", indent+"\t")
+		g.printEncodeCall(p, t.Value, "v", indent+"\t")
 		p.Println(indent, `}`)
 
 	case *schema.DefinedType:
@@ -63,7 +74,7 @@ func printEncodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 	}
 }
 
-func printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent string) {
+func (g *typegen) printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent string) {
 	switch t := t.(type) {
 	case *schema.Pointer:
 		p.Println(indent, `if typ, err := r.Peek(); err != nil {`)
@@ -73,9 +84,9 @@ func printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		p.Println(indent, `	`, specifier, ` = nil`)
 		p.Println(indent, `} else {`)
 		p.Println(indent, `	if `, specifier, ` == nil {`)
-		p.Println(indent, `		`, specifier, ` = new(`, typename(t.Value), `)`)
+		p.Println(indent, `		`, specifier, ` = new(`, g.typename(t.Value), `)`)
 		p.Println(indent, `	}`)
-		printDecodeCall(p, t.Value, "*"+specifier, indent+"\t")
+		g.printDecodeCall(p, t.Value, "*"+specifier, indent+"\t")
 		p.Println(indent, `}`)
 
 	case *schema.Array:
@@ -94,13 +105,13 @@ func printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		}
 		if t.Size <= 0 {
 			p.Println(indent, `if cap(`, specifier, `) < `, length, ` {`)
-			p.Println(indent, `	`, specifier, ` = make([]`, typename(t.Value), `, `, length, `)`)
+			p.Println(indent, `	`, specifier, ` = make([]`, g.typename(t.Value), `, `, length, `)`)
 			p.Println(indent, `} else {`)
 			p.Println(indent, `	`, specifier, ` = `, specifier, `[:`, length, `]`)
 			p.Println(indent, `}`)
 		}
 		p.Println(indent, `for i := 0; i < `, length, `; i++ {`)
-		printDecodeCall(p, t.Value, specifier+"[i]", indent+"\t")
+		g.printDecodeCall(p, t.Value, specifier+"[i]", indent+"\t")
 		p.Println(indent, `}`)
 
 	case *schema.Map:
@@ -110,13 +121,13 @@ func printDecodeCall(p gen.Printer, t schema.Type, specifier string, indent stri
 		p.Println(indent, `	return err`)
 		p.Println(indent, `}`)
 		p.Println(indent, `if `, specifier, ` == nil {`)
-		p.Println(indent, `	`, specifier, ` = make(map[`, typename(t.Key), `]`, typename(t.Value), `, `, length, `)`)
+		p.Println(indent, `	`, specifier, ` = make(map[`, g.typename(t.Key), `]`, g.typename(t.Value), `, `, length, `)`)
 		p.Println(indent, `}`)
 		p.Println(indent, `for i := 0; i < `, length, `; i++ {`)
-		p.Println(indent, `	var k `, typename(t.Key))
-		printDecodeCall(p, t.Key, "k", indent+"\t")
-		p.Println(indent, `	var v `, typename(t.Value))
-		printDecodeCall(p, t.Value, "v", indent+"\t")
+		p.Println(indent, `	var k `, g.typename(t.Key))
+		g.printDecodeCall(p, t.Key, "k", indent+"\t")
+		p.Println(indent, `	var v `, g.typename(t.Value))
+		g.printDecodeCall(p, t.Value, "v", indent+"\t")
 		p.Println(indent, `	`, specifier, `[k] = v`)
 		p.Println(indent, `}`)
 

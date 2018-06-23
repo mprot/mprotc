@@ -7,9 +7,9 @@ import (
 	"github.com/mprot/mprotc/schema"
 )
 
-func msgpackImports(s *schema.Schema) []string {
+func msgpackImports(f *schema.File) []string {
 	imports := map[string]struct{}{}
-	iterTypes(s, func(t schema.Type) {
+	iterTypes(f, func(t schema.Type) {
 		addMsgpackImports(imports, t)
 	})
 
@@ -76,18 +76,18 @@ func msgpackTypename(t schema.Type) string {
 	}
 }
 
-func iterTypes(s *schema.Schema, f func(schema.Type)) {
-	for _, decl := range s.Decls {
-		f(schema.DeclType(decl))
+func iterTypes(f *schema.File, iter func(schema.Type)) {
+	for _, decl := range f.Decls {
+		iter(schema.DeclType(decl))
 
 		switch decl := decl.(type) {
 		case *schema.Struct:
 			for _, field := range decl.Fields {
-				f(field.Type)
+				iter(field.Type)
 			}
 		case *schema.Union:
 			for _, branch := range decl.Branches {
-				f(branch.Type)
+				iter(branch.Type)
 			}
 		}
 	}

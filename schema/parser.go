@@ -1,79 +1,124 @@
 package schema
 
 import (
+	"fmt"
 	"io"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
 
-// Parse parses a schema which is read from the given reader.
-func Parse(r io.Reader) (*Schema, error) {
-	var p parser
-	return p.Parse(r, "")
-}
-
-// ParseFile parses a schema from a file.
-func ParseFile(filename string) (*Schema, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var p parser
-	return p.Parse(f, filename)
+type unresolved struct {
+	typ *DefinedType
+	pos Pos
 }
 
 type parser struct {
 	t          tokenizer
 	tok        token
 	lit        string
-	doc        []string
 	pos        Pos
+	doc        []string
 	errs       ErrorList
 	idents     map[string]*DefinedType // type name => type
-	unresolved []*DefinedType          // unsresolved type names
+	unresolved []unresolved
 }
 
-func (p *parser) Parse(r io.Reader, filename string) (*Schema, error) {
-	p.t.Init(r, filename, 4096)
-	p.errs.clear()
-	p.idents = make(map[string]*DefinedType)
-	p.next() // scan initial token
+func (p *parser) ParseFile(filename string) (*File, error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
 
-	s := p.parseSchema()
+	return p.Parse(f, filename)
+}
+
+func (p *parser) Parse(r io.Reader, filename string) (*File, error) {
+	p.t.Reset(r, filename, 4096)
+	p.doc = p.doc[:0]
+	p.errs = ErrorList{}
+	p.idents = make(map[string]*DefinedType)
+	p.unresolved = p.unresolved[:0]
+	p.next() // scan initial tok, lit, and pos
+
+	f := &File{Name: filename}
+	f.Doc = p.docComments()
+	f.Package = p.parsePackage()
+	f.Imports = p.parseImports()
+	f.Decls = p.parseDecls()
 
 	// resolve yet unresolved identifiers
-	for _, typ := range p.unresolved {
-		if typ.Decl == nil {
-			p.errorf("undefined type %s", typ.name)
+	for _, unresolved := range p.unresolved {
+		if unresolved.typ.Imported() {
+			unresolved.typ.Decl = f.Imports[unresolved.typ.pkg]
+		}
+		if unresolved.typ.Decl == nil {
+			p.errorfpos(unresolved.pos, "undefined type %s", unresolved.typ.Name())
 		}
 	}
 
-	s.validate(p)
-	return s, p.errs.err()
+	f.validate(p)
+	return f, p.errs.err()
 }
 
-func (p *parser) parseSchema() *Schema {
-	s := &Schema{Doc: p.docComments()}
+func (p *parser) parsePackage() *Package {
+	pkg := &Package{pos: p.pos}
 
-	p.expect(pkg)
-	s.Package = p.parseIdent()
+	p.expect(packg)
+	pkg.Name = p.parseIdent()
 	p.expect(semicol)
+	return pkg
+}
 
+func (p *parser) parseImports() map[string]*Import {
+	imports := make(map[string]*Import)
+	for p.tok == imprt {
+		imp := &Import{pos: p.pos}
+
+		p.expect(imprt)
+
+		if p.tok == ident {
+			imp.Name = p.lit
+			p.next()
+		}
+
+		imp.Path = p.lit[1 : len(p.lit)-1] // trim delimiters
+		p.expect(strlit)
+
+		if imp.Name == "" {
+			imp.Name = path.Base(imp.Path)
+			imp.Name = imp.Name[:len(imp.Name)-len(path.Ext(imp.Name))]
+		}
+
+		if imp.Path == "" || imp.Name == "" {
+			p.errorf("invalid import path %q", imp.Path)
+		} else if _, has := imports[imp.Name]; has {
+			p.errorf("import %q already defined", imp.Name)
+		} else {
+			imports[imp.Name] = imp
+		}
+
+		p.expect(semicol)
+	}
+	return imports
+}
+
+func (p *parser) parseDecls() []Decl {
+	var decls []Decl
 	for {
 		switch p.tok {
 		case eof:
-			return s
+			return decls
 		case constant:
-			s.Decls = append(s.Decls, p.parseConst())
+			decls = append(decls, p.parseConst())
 		case enum:
-			s.Decls = append(s.Decls, p.parseEnum())
+			decls = append(decls, p.parseEnum())
 		case strct:
-			s.Decls = append(s.Decls, p.parseStruct())
+			decls = append(decls, p.parseStruct())
 		case union:
-			s.Decls = append(s.Decls, p.parseUnion())
+			decls = append(decls, p.parseUnion())
 		case semicol:
 			p.next()
 		case invalid:
@@ -148,7 +193,7 @@ func (p *parser) parseStruct() *Struct {
 	s.Name = p.parseIdent()
 	p.expect(lbrace)
 
-	for p.tok != rbrace {
+	for p.tok != rbrace && p.tok != eof {
 		name := p.parseIdent()
 		typ := p.parseType()
 		ordinal, tags := p.parseTagString(false)
@@ -178,7 +223,7 @@ func (p *parser) parseUnion() *Union {
 	u.Name = p.parseIdent()
 	p.expect(lbrace)
 
-	for p.tok != rbrace {
+	for p.tok != rbrace && p.tok != eof {
 		typ := p.parseType()
 		ordinal, tags := p.parseTagString(false)
 		p.expect(semicol)
@@ -200,7 +245,11 @@ func (p *parser) parseUnion() *Union {
 }
 
 func (p *parser) parseTagString(negativeOrdinals bool) (int64, Tags) {
-	if p.tok != strlit {
+	switch {
+	case p.tok == semicol:
+		p.errorf("missing tag string")
+		return 0, nil
+	case p.tok != strlit:
 		p.expect(strlit)
 		return 0, nil
 	}
@@ -314,6 +363,13 @@ func (p *parser) parseType() Type {
 	case ident:
 		name := p.lit
 		p.next()
+		if p.tok == period {
+			p.next()
+			lit := p.lit
+			p.expect(ident)
+
+			name += "." + lit
+		}
 		return p.resolve(name)
 
 	default:
@@ -377,7 +433,10 @@ func (p *parser) resolve(ident string) Type {
 			return typ
 		}
 		typ := p.register(ident, nil)
-		p.unresolved = append(p.unresolved, typ)
+		p.unresolved = append(p.unresolved, unresolved{
+			typ: typ,
+			pos: p.pos,
+		})
 		return typ
 	}
 }
@@ -386,7 +445,7 @@ func (p *parser) register(name string, decl Decl) *DefinedType {
 	typ := p.idents[name]
 	switch {
 	case typ == nil:
-		typ = &DefinedType{name: name, Decl: decl}
+		typ = newDefinedType(name, decl)
 		p.idents[name] = typ
 	case typ.Decl == nil:
 		typ.Decl = decl
@@ -415,7 +474,11 @@ func (p *parser) scanError() {
 }
 
 func (p *parser) errorf(format string, args ...interface{}) {
-	p.errs.add(errorf(format, args...), p.pos)
+	p.errorfpos(p.pos, format, args...)
+}
+
+func (p *parser) errorfpos(pos Pos, format string, args ...interface{}) {
+	p.errs.add(pos, fmt.Sprintf(format, args...))
 }
 
 func (p *parser) next() {

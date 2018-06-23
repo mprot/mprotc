@@ -1,81 +1,57 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/mprot/mprotc/gen"
 	"github.com/mprot/mprotc/schema"
 )
 
 type generatorOptions struct {
-	outputPath  string
-	deprecated  bool
-	packageName string
+	rootPath   string
+	outputPath string
+	deprecated bool
+	dryRun     bool
 }
 
 type generator interface {
-	Generate(w *gen.FileWriter, s *schema.Schema)
+	Generate(w *gen.FileWriter, s schema.Schema)
 }
 
 type codeGenerator struct {
-	generator
-	outputPath  string
-	deprecated  bool
-	packageName string
+	gen  generator
+	opts generatorOptions
 }
 
 func newCodeGenerator(g generator, opts generatorOptions) codeGenerator {
 	return codeGenerator{
-		generator:   g,
-		outputPath:  opts.outputPath,
-		deprecated:  opts.deprecated,
-		packageName: opts.packageName,
+		gen:  g,
+		opts: opts,
 	}
 }
 
-func (g *codeGenerator) Generate(s *schema.Schema, targetFilename string) error {
-	if !g.deprecated {
-		g.removeDeprecated(s)
-	}
-	if g.packageName != "" {
-		s.Package = g.packageName
+func (g *codeGenerator) Generate(globPatterns []string) error {
+	s, err := schema.Parse(g.opts.rootPath, globPatterns)
+	if err != nil {
+		return err
 	}
 
-	w := gen.NewFileWriter(g.outputPath, targetFilename)
-	g.generator.Generate(w, s)
+	if !g.opts.deprecated {
+		s.RemoveDeprecated()
+	}
+
+	w, err := gen.NewFileWriter(g.opts.outputPath)
+	if err != nil {
+		return err
+	}
+
+	g.gen.Generate(w, s)
+	if g.opts.dryRun {
+		w.WalkFiles(func(filename string) {
+			fmt.Fprintln(os.Stdout, filename)
+		})
+		return nil
+	}
 	return w.Flush()
-}
-
-func (g *codeGenerator) removeDeprecated(s *schema.Schema) {
-	for _, decl := range s.Decls {
-		switch decl := decl.(type) {
-		case *schema.Enum:
-			idx := 0
-			for i := 0; i < len(decl.Enumerators); i++ {
-				if !decl.Enumerators[i].Tags.Deprecated() {
-					decl.Enumerators[idx] = decl.Enumerators[i]
-					idx++
-				}
-			}
-			decl.Enumerators = decl.Enumerators[:idx]
-
-		case *schema.Struct:
-			idx := 0
-			for i := 0; i < len(decl.Fields); i++ {
-				if !decl.Fields[i].Tags.Deprecated() {
-					decl.Fields[idx] = decl.Fields[i]
-					idx++
-				}
-			}
-			decl.Fields = decl.Fields[:idx]
-
-		case *schema.Union:
-			idx := 0
-			for i := 0; i < len(decl.Branches); i++ {
-				if !decl.Branches[i].Tags.Deprecated() {
-					decl.Branches[idx] = decl.Branches[i]
-					idx++
-				}
-			}
-			decl.Branches = decl.Branches[:idx]
-		}
-	}
 }

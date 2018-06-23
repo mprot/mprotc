@@ -1,6 +1,9 @@
 package schema
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 const (
 	errInvalidOctNumber      = errorString("invalid octal number")
@@ -21,31 +24,33 @@ type errorReporter interface {
 
 type errorString string
 
+func errorf(format string, args ...interface{}) error {
+	return errorString(fmt.Sprintf(format, args...))
+}
+
 func (e errorString) Error() string {
 	return string(e)
 }
 
-// Error represents a parsing error with an additional error position.
 type Error struct {
-	Err error // underlying error
-	Pos Pos   // position where the error occured
+	Pos  Pos
+	Text string
 }
 
-// Error implements the error interface and returns the error message.
 func (e Error) Error() string {
-	return e.Pos.String() + ": " + e.Err.Error()
+	return e.Pos.String() + ": " + e.Text
 }
 
-// ErrorList holds multiple parsing errors.
-type ErrorList []error
+type ErrorList []Error
 
-// Error implements the error interface and returns the error message.
 func (e ErrorList) Error() string {
 	switch len(e) {
 	case 0:
 		return "no errors"
 	case 1:
 		return e[0].Error()
+	case 2:
+		return fmt.Sprintf("%v (and 1 more error)", e[0])
 	default:
 		return fmt.Sprintf("%v (and %d more errors)", e[0], len(e)-1)
 	}
@@ -58,17 +63,29 @@ func (e ErrorList) err() error {
 	return e
 }
 
-func (e *ErrorList) add(err error, pos Pos) {
+func (e *ErrorList) add(pos Pos, text string) {
 	*e = append(*e, Error{
-		Err: err,
-		Pos: pos,
+		Pos:  pos,
+		Text: text,
 	})
 }
 
-func (e *ErrorList) clear() {
-	*e = (*e)[:0]
+func (e ErrorList) concat(el ErrorList) ErrorList {
+	return append(e, el...)
 }
 
-func errorf(format string, args ...interface{}) error {
-	return errorString(fmt.Sprintf(format, args...))
+func (e ErrorList) sort() {
+	sort.Slice(e, func(i, j int) bool {
+		left, right := e[i].Pos, e[j].Pos
+		switch {
+		case left.File != right.File:
+			return left.File < right.File
+		case left.Line != right.Line:
+			return left.Line < right.Line
+		case left.Column != right.Column:
+			return left.Column < right.Column
+		default:
+			return false
+		}
+	})
 }

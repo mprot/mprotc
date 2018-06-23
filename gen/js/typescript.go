@@ -7,10 +7,10 @@ import (
 	"github.com/mprot/mprotc/schema"
 )
 
-func typescriptImports(s *schema.Schema) []string {
+func typescriptImports(f *schema.File) []string {
 	hasStruct := false
 	hasUnion := false
-	iterTypes(s, func(t schema.Type) {
+	iterTypes(f, func(t schema.Type) {
 		if defined, ok := t.(*schema.DefinedType); ok {
 			switch defined.Decl.(type) {
 			case *schema.Struct:

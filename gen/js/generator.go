@@ -35,38 +35,40 @@ func NewGenerator(opts Options) *Generator {
 }
 
 // Generate generates the JavaScript code for the given schema and prints it to p.
-func (g *Generator) Generate(w *gen.FileWriter, s *schema.Schema) {
-	g.generate(w.Printer(".js"), s)
-	if g.typeDecls {
-		g.generateTypeDecls(w.Printer(".d.ts"), s)
+func (g *Generator) Generate(w *gen.FileWriter, s schema.Schema) {
+	for _, file := range s {
+		g.generate(w.Printer(file.Name, ".js"), file)
+		if g.typeDecls {
+			g.generateTypeDecls(w.Printer(file.Name, ".d.ts"), file)
+		}
 	}
 }
 
-func (g *Generator) generate(p gen.Printer, s *schema.Schema) {
+func (g *Generator) generate(p gen.Printer, f *schema.File) {
 	codec := newCodec("__codec")
 
 	g.printPreamble(p)
-	if len(s.Doc) != 0 {
+	if len(f.Doc) != 0 {
 		p.Println()
-		printDoc(p, s.Doc, "")
+		printDoc(p, f.Doc, "")
 	}
 	p.Println()
-	g.printImports(p, msgpackImports(s))
+	g.printImports(p, msgpackImports(f))
 	p.Println()
-	g.printDeclarations(p, s, codec)
+	g.printDeclarations(p, f, codec)
 	p.Println()
-	g.printCollectionTypes(p, s)
+	g.printCollectionTypes(p, f)
 	if codec.Size() != 0 {
 		p.Println()
 		g.printCodec(p, codec)
 	}
 }
 
-func (g *Generator) generateTypeDecls(p gen.Printer, s *schema.Schema) {
+func (g *Generator) generateTypeDecls(p gen.Printer, f *schema.File) {
 	g.printPreamble(p)
-	g.printImports(p, typescriptImports(s))
+	g.printImports(p, typescriptImports(f))
 
-	for _, decl := range s.Decls {
+	for _, decl := range f.Decls {
 		switch decl := decl.(type) {
 		case *schema.Const:
 			continue
@@ -96,8 +98,8 @@ func (g *Generator) printImports(p gen.Printer, imports []string) {
 	}
 }
 
-func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema, codec *codec) {
-	for i, decl := range s.Decls {
+func (g *Generator) printDeclarations(p gen.Printer, f *schema.File, codec *codec) {
+	for i, decl := range f.Decls {
 		switch decl := decl.(type) {
 		case *schema.Const:
 			g.cnst.GenerateDecl(p, decl)
@@ -111,7 +113,7 @@ func (g *Generator) printDeclarations(p gen.Printer, s *schema.Schema, codec *co
 			panic(fmt.Sprintf("unsupported declaration type %T", decl))
 		}
 
-		if i < len(s.Decls)-1 {
+		if i < len(f.Decls)-1 {
 			p.Println()
 		}
 	}
@@ -134,9 +136,9 @@ func (g *Generator) printCodec(p gen.Printer, codec *codec) {
 	p.Println(`};`)
 }
 
-func (g *Generator) printCollectionTypes(p gen.Printer, s *schema.Schema) {
+func (g *Generator) printCollectionTypes(p gen.Printer, f *schema.File) {
 	types := map[string]string{} // typename => type declaration
-	iterTypes(s, func(t schema.Type) {
+	iterTypes(f, func(t schema.Type) {
 		switch t := t.(type) {
 		case *schema.Array:
 			types[msgpackTypename(t)] = fmt.Sprintf("TypedArr(%s)", msgpackTypename(t.Value))
