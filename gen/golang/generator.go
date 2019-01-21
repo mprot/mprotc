@@ -65,12 +65,8 @@ func (g *Generator) generate(p gen.Printer, f *schema.File) {
 	if len(imports) != 0 {
 		p.Println()
 		for _, imp := range sortedImports(imports) {
-			importPath := filepath.Dir(imp.Path)
-			if filepath.Separator != '/' {
-				importPath = strings.Replace(importPath, string(filepath.Separator), "/", -1)
-			}
-			importPath = path.Join(g.importRoot, importPath)
-			p.Println(`	`, imp.Name, ` "`, importPath, `"`)
+			name, path := g.importName(imp)
+			p.Println(`	`, name, ` "`, path, `"`)
 		}
 	}
 	p.Println(`)`)
@@ -96,6 +92,18 @@ func (g *Generator) generate(p gen.Printer, f *schema.File) {
 			panic(fmt.Sprintf("unsupported declaration type %T", decl))
 		}
 	}
+}
+
+func (g *Generator) importName(imp *schema.Import) (string, string) {
+	importPath := filepath.Dir(imp.Path)
+	if filepath.Separator != '/' {
+		importPath = strings.Replace(importPath, string(filepath.Separator), "/", -1)
+	}
+	importPath = path.Join(g.importRoot, importPath)
+
+	importName := path.Base(importPath)
+	importName = strings.Replace(importName, "-", "_", -1)
+	return importName, importPath
 }
 
 func fileImports(f *schema.File) map[string]*schema.Import {
