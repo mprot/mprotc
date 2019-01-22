@@ -11,7 +11,7 @@ import (
 )
 
 type typegen struct {
-	imports map[string]*schema.Import // import name => import
+	importNames map[string]string // go import name => mprot import name
 }
 
 func (g *typegen) typename(t schema.Type) string {
@@ -25,9 +25,11 @@ func (g *typegen) typename(t schema.Type) string {
 	case *schema.DefinedType:
 		if t.Imported() {
 			imp := t.Decl.(*schema.Import)
-			if _, has := g.imports[imp.Name]; !has {
-				return strings.TrimPrefix(t.Name(), imp.Name+".")
+			name := strings.TrimPrefix(t.Name(), imp.Name+".")
+			if impName, has := g.importNames[imp.Name]; has {
+				name = impName + "." + name
 			}
+			return name
 		}
 	}
 	return t.Name()
@@ -62,6 +64,7 @@ func (g *typegen) printEncodeCall(p gen.Printer, t schema.Type, specifier string
 		p.Println(indent, `}`)
 
 	case *schema.DefinedType:
+		specifier = strings.TrimPrefix(specifier, "*")
 		p.Println(indent, `if err = `, specifier, `.EncodeMsgpack(w); err != nil {`)
 		p.Println(indent, `	return err`)
 		p.Println(indent, `}`)

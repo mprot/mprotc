@@ -11,18 +11,18 @@ type Schema []*File
 // by the given glob patterns. The given glob patterns are interpreted as
 // relative to the given root directory.
 func Parse(rootDir string, globPatterns []string) (Schema, error) {
-	filenames, err := glob(rootDir, globPatterns)
+	fset, err := glob(rootDir, globPatterns)
 	if err != nil {
 		return nil, err
 	}
 
-	s := make(Schema, 0, len(filenames))
+	s := make(Schema, 0, fset.size())
 
 	var (
 		p    parser
 		errs ErrorList
 	)
-	for _, filename := range filenames {
+	for _, filename := range fset.filenames() {
 		f, err := p.ParseFile(filename)
 		if err != nil {
 			if el, ok := err.(ErrorList); ok {
@@ -113,32 +113,6 @@ func (f *File) validate(r errorReporter) {
 	for _, decl := range f.Decls {
 		decl.validate(r)
 	}
-}
-
-func glob(rootDir string, patterns []string) ([]string, error) {
-	nameset := make(map[string]struct{})
-
-	var filenames []string
-	for _, pattern := range patterns {
-		pattern = filepath.Join(rootDir, pattern)
-
-		names, err := filepath.Glob(pattern)
-		if err != nil {
-			if err == filepath.ErrBadPattern {
-				return nil, errorf("invalid glob pattern %q", pattern)
-			}
-			return nil, err
-		}
-
-		for _, name := range names {
-			if _, has := nameset[name]; !has {
-				filenames = append(filenames, name)
-				nameset[name] = struct{}{}
-			}
-		}
-
-	}
-	return filenames, nil
 }
 
 func importName(typ Type) string {
