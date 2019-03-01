@@ -52,7 +52,7 @@ func (c *Const) Pos() Pos {
 }
 
 func (c *Const) validate(r errorReporter) {
-	// do nothing
+	// The correct types are already handled by the parser.
 }
 
 // Enumerator holds the data of an enumerator value.
@@ -76,7 +76,7 @@ func (e *Enum) Pos() Pos {
 }
 
 func (e *Enum) validate(r errorReporter) {
-	enumerators := make(map[string]struct{})
+	enumerators := make(map[string]struct{}, len(e.Enumerators))
 	for _, en := range e.Enumerators {
 		if _, has := enumerators[en.Name]; has {
 			r.errorf("duplicate enumerator %s in enum %s", en.Name, e.Name)
@@ -107,13 +107,17 @@ func (s *Struct) Pos() Pos {
 }
 
 func (s *Struct) validate(r errorReporter) {
-	fields := make(map[string]struct{})
-	ordinals := make(map[int64]struct{})
+	fields := make(map[string]struct{}, len(s.Fields))
+	ordinals := make(map[int64]struct{}, len(s.Fields))
 	for _, f := range s.Fields {
 		if _, has := fields[f.Name]; has {
 			r.errorf("duplicate field %s in struct %s", f.Name, s.Name)
 		} else if _, has := ordinals[f.Ordinal]; has && f.Ordinal != 0 {
 			r.errorf("duplicate ordinal %d for field %s in struct %s", f.Ordinal, f.Name, s.Name)
+		}
+
+		if isService(f.Type) {
+			r.errorf("service field %s in struct %s", f.Name, s.Name)
 		}
 
 		fields[f.Name] = struct{}{}
@@ -147,8 +151,8 @@ func (u *Union) validate(r errorReporter) {
 		return
 	}
 
-	branches := make(map[string]struct{})
-	ordinals := make(map[int64]struct{})
+	branches := make(map[string]struct{}, len(u.Branches))
+	ordinals := make(map[int64]struct{}, len(u.Branches))
 	hasNumericBranch := false
 	for _, b := range u.Branches {
 		typeid := b.Type.typeid()
@@ -180,6 +184,9 @@ func (u *Union) validate(r errorReporter) {
 				case *Union:
 					r.errorf("union branch %s in union %s", typ.Name(), u.Name)
 					continue
+				case *Service:
+					r.errorf("service branch %s in union %s", typ.Name(), u.Name)
+					continue
 				}
 			}
 		default:
@@ -195,4 +202,55 @@ func (u *Union) validate(r errorReporter) {
 		branches[typeid] = struct{}{}
 		ordinals[b.Ordinal] = struct{}{}
 	}
+}
+
+// Method holds the data for a service methods.
+type Method struct {
+	Doc     []string
+	Name    string
+	Args    []Type
+	Return  Type // nil for void
+	Ordinal int64
+	Tags    Tags
+}
+
+// Service holds the data of an mprot service.
+type Service struct {
+	pos     Pos
+	Doc     []string
+	Name    string
+	Methods []Method
+}
+
+// Pos implements the Decl interface.
+func (s *Service) Pos() Pos {
+	return s.pos
+}
+
+func (s *Service) validate(r errorReporter) {
+	methods := make(map[string]struct{}, len(s.Methods))
+	for _, m := range s.Methods {
+		if _, has := methods[m.Name]; has {
+			r.errorf("duplicate method %s in service %s", m.Name, s.Name)
+		}
+
+		for _, arg := range m.Args {
+			if isService(arg) {
+				r.errorf("service argument in method %s of service %s", m.Name, s.Name)
+			}
+		}
+		if isService(m.Return) {
+			r.errorf("method %s of service %s returns service type", m.Name, s.Name)
+		}
+
+		methods[m.Name] = struct{}{}
+	}
+}
+
+func isService(t Type) bool {
+	if typ, ok := t.(*DefinedType); ok {
+		_, isService := typ.Decl.(*Service)
+		return isService
+	}
+	return false
 }

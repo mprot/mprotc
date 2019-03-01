@@ -45,9 +45,9 @@ func LowerFirstWord(s string) string {
 }
 
 func transformFirstWord(s string, transform func(string) string) string {
-	var res string
+	res := ""
 	iterWords(s, func(w string) {
-		if len(res) == 0 {
+		if res == "" {
 			res = transform(w)
 		} else {
 			res += w

@@ -119,6 +119,8 @@ func (p *parser) parseDecls() []Decl {
 			decls = append(decls, p.parseStruct())
 		case union:
 			decls = append(decls, p.parseUnion())
+		case service:
+			decls = append(decls, p.parseService())
 		case semicol:
 			p.next()
 		case invalid:
@@ -244,6 +246,50 @@ func (p *parser) parseUnion() *Union {
 	return u
 }
 
+func (p *parser) parseService() *Service {
+	s := &Service{pos: p.pos, Doc: p.docComments()}
+
+	p.expect(service)
+	s.Name = p.parseIdent()
+	p.expect(lbrace)
+
+	for p.tok != rbrace && p.tok != eof {
+		doc := p.docComments()
+		methodName := p.parseIdent()
+		p.expect(lparen)
+
+		var args []Type
+		if p.tok != rparen {
+			args = append(args, p.parseType())
+			for p.tok == comma {
+				p.next()
+				args = append(args, p.parseType())
+			}
+		}
+		p.expect(rparen)
+		ret := p.tryParseType()
+		ordinal, tags := p.parseTagString(false)
+		p.expect(semicol)
+
+		if methodName != "" {
+			s.Methods = append(s.Methods, Method{
+				Doc:     doc,
+				Name:    methodName,
+				Args:    args,
+				Return:  ret,
+				Ordinal: ordinal,
+				Tags:    tags,
+			})
+		}
+	}
+
+	p.expect(rbrace)
+	p.expect(semicol)
+
+	p.register(s.Name, s)
+	return s
+}
+
 func (p *parser) parseTagString(negativeOrdinals bool) (int64, Tags) {
 	switch {
 	case p.tok == semicol:
@@ -321,6 +367,17 @@ func (p *parser) parseTagString(negativeOrdinals bool) (int64, Tags) {
 }
 
 func (p *parser) parseType() Type {
+	typ := p.tryParseType()
+	if typ == nil {
+		if p.tok != invalid { // invalid already reported an error
+			p.errorf("unexpected token %q", p.lit)
+		}
+		p.next()
+	}
+	return typ
+}
+
+func (p *parser) tryParseType() Type {
 	switch p.tok {
 	case lbrack: // []type or [n]type
 		p.expect(lbrack)
@@ -373,10 +430,6 @@ func (p *parser) parseType() Type {
 		return p.resolve(name)
 
 	default:
-		if p.tok != invalid { // invalid already reported an error
-			p.errorf("unexpected token %q", p.lit)
-		}
-		p.next()
 		return nil
 	}
 }

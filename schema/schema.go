@@ -99,6 +99,24 @@ func (f *File) RemoveDeprecated() {
 				}
 			}
 			decl.Branches = decl.Branches[:idx]
+
+		case *Service:
+			idx := 0
+			for i := 0; i < len(decl.Methods); i++ {
+				if method := decl.Methods[i]; !method.Tags.Deprecated() {
+					decl.Methods[idx] = method
+					idx++
+					for _, arg := range method.Args {
+						if pkg := importName(arg); pkg != "" {
+							usedImports[pkg] = struct{}{}
+						}
+					}
+					if pkg := importName(method.Return); pkg != "" {
+						usedImports[pkg] = struct{}{}
+					}
+				}
+			}
+			decl.Methods = decl.Methods[:idx]
 		}
 	}
 

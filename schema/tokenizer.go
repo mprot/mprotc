@@ -12,6 +12,8 @@ const (
 	eof      token = "eof"
 	invalid  token = "invalid"
 	semicol  token = ";"
+	lparen   token = "("
+	rparen   token = ")"
 	lbrack   token = "["
 	rbrack   token = "]"
 	lbrace   token = "{"
@@ -19,6 +21,7 @@ const (
 	asterisk token = "*"
 	assign   token = "="
 	period   token = "."
+	comma    token = ","
 	ident    token = "ident"
 	strlit   token = "string"
 	intlit   token = "int"
@@ -31,6 +34,7 @@ const (
 	enum     token = "enum"
 	strct    token = "struct"
 	union    token = "union"
+	service  token = "service"
 	maptype  token = "map"
 
 	bom     = 0xfeff
@@ -123,6 +127,13 @@ func (t *tokenizer) Next() (token, string, Pos) {
 		// for newline t.implicitSemi was true here
 		t.nextChar()
 		return t.token(semicol)
+	case '(':
+		t.nextChar()
+		return t.token(lparen)
+	case ')':
+		implicitSemi = true
+		t.nextChar()
+		return t.token(rparen)
 	case '[':
 		t.nextChar()
 		return t.token(lbrack)
@@ -150,6 +161,9 @@ func (t *tokenizer) Next() (token, string, Pos) {
 			return t.scanNumber(true)
 		}
 		return t.token(period)
+	case ',':
+		t.nextChar()
+		return t.token(comma)
 	case '/':
 		if t.implicitSemi {
 			return semicol, "\n", t.tokpos
@@ -469,6 +483,8 @@ func lookupKeyword(lit string) token {
 		return enum
 	case "struct":
 		return strct
+	case "service":
+		return service
 	case "union":
 		return union
 	case "map":

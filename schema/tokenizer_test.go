@@ -51,6 +51,8 @@ func TestTokenizerTokens(t *testing.T) {
 	}
 
 	tests := [...]test{
+		{lparen, "("},
+		{rparen, ")"},
 		{lbrack, "["},
 		{rbrack, "]"},
 		{lbrace, "{"},
@@ -58,12 +60,14 @@ func TestTokenizerTokens(t *testing.T) {
 		{asterisk, "*"},
 		{assign, "="},
 		{period, "."},
+		{comma, ","},
 
 		{packg, "package"},
 		{imprt, "import"},
 		{constant, "const"},
 		{enum, "enum"},
 		{strct, "struct"},
+		{service, "service"},
 		{union, "union"},
 		{maptype, "map"},
 
@@ -147,7 +151,7 @@ func TestTokenizerTokens(t *testing.T) {
 
 		// trailing semicolon
 		switch test.token {
-		case ident, intlit, floatlit, strlit, rbrack, rbrace:
+		case ident, intlit, floatlit, strlit, rparen, rbrack, rbrace:
 			if tok, _, _ = tk.Next(); tok != semicol {
 				t.Errorf("unexpected token after %q: %s", test.literal, tok)
 			}

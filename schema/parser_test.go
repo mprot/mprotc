@@ -73,6 +73,17 @@ func TestParse(t *testing.T) {
 		[]S          "3"
 		map[string]S "4"
 	}
+
+	// my service doc comment
+	service Svc {
+		// F1 doc
+		F1()                        "1"
+		F2() int                    "2"
+		F3(bool)                    "3"
+		F4(bytes) S                 "4"
+		F5(ext.X, string, float32)  "5"
+		F6(float64, raw, bytes) E   "6"
+	}
 	`
 
 	imports := [...]*Import{
@@ -174,6 +185,22 @@ func TestParse(t *testing.T) {
 		},
 	}
 
+	services := [...]*Service{
+		{
+			pos:  Pos{Line: 69, Column: 2},
+			Doc:  []string{"my service doc comment"},
+			Name: "Svc",
+			Methods: []Method{
+				{Doc: []string{"F1 doc"}, Name: "F1", Args: nil, Return: nil, Ordinal: 1, Tags: Tags{}},
+				{Name: "F2", Args: nil, Return: &Int{}, Ordinal: 2, Tags: Tags{}},
+				{Name: "F3", Args: []Type{&Bool{}}, Return: nil, Ordinal: 3, Tags: Tags{}},
+				{Name: "F4", Args: []Type{&Bytes{}}, Return: &DefinedType{name: "S", Decl: structs[0]}, Ordinal: 4, Tags: Tags{}},
+				{Name: "F5", Args: []Type{&DefinedType{pkg: "ext", name: "X", Decl: imports[1]}, &String{}, &Float{Bits: 32}}, Return: nil, Ordinal: 5, Tags: Tags{}},
+				{Name: "F6", Args: []Type{&Float{Bits: 64}, &Raw{}, &Bytes{}}, Return: &DefinedType{name: "E", Decl: enums[0]}, Ordinal: 6, Tags: Tags{}},
+			},
+		},
+	}
+
 	expectedPackage := &Package{
 		pos:  Pos{Line: 3, Column: 2},
 		Name: "foo",
@@ -191,6 +218,7 @@ func TestParse(t *testing.T) {
 		structs[0],
 		enums[0],
 		unions[0],
+		services[0],
 	}
 
 	var p parser
@@ -250,6 +278,7 @@ func TestParserErrors(t *testing.T) {
 		M string "11"                          // duplicate ordinal
 		N X "12"                               // undefined type
 		O int                                  // missing tag string
+		P Svc "13"                             // service field
 	}
 
 	enum T {}                                  // type redeclared
@@ -276,6 +305,7 @@ func TestParserErrors(t *testing.T) {
 		float32      "10"                      // duplicate numeric branch
 		F            "11"                      // duplicate numeric branch
 		raw          "12"                      // raw branch
+		Svc          "13"                      // service branch
 		ext.X                                  // missing tag string
 	}
 
@@ -283,6 +313,14 @@ func TestParserErrors(t *testing.T) {
 
 	union W {
 		U "1"                                  // union branch
+	}
+
+	service Svc {
+		F()     "1"
+		F()     "2"                            // duplicate method
+		G(Svc)  "3"                            // service argument
+		H() Svc "4"                            // service return type
+		I()                                    // missing tag string
 	}
 	`
 
@@ -308,14 +346,16 @@ func TestParserErrors(t *testing.T) {
 		`unexpected token "{"`,
 		`missing tag string`,
 		`type T redeclared (see position 11:2)`,
-		`missing tag string`,
-		`missing tag string`,
+		`missing tag string`, // enum
+		`missing tag string`, // union
+		`missing tag string`, // service
 		// resolve errors
 		`undefined type X`,
 		`undefined type Y`,
 		// type validation errors
 		`duplicate field L in struct T`,
 		`duplicate ordinal 11 for field M in struct T`,
+		`service field P in struct T`,
 		`duplicate enumerator E1 in enum E`,
 		`pointer branch *E in union U`,
 		`duplicate branch E in union U`,
@@ -326,8 +366,12 @@ func TestParserErrors(t *testing.T) {
 		`duplicate numeric branch float32 in union U`,
 		`duplicate numeric branch F in union U`,
 		`raw branch in union U`,
+		`service branch Svc in union U`,
 		`union V does not contain a branch`,
 		`union branch U in union W`,
+		`duplicate method F in service Svc`,
+		`service argument in method G of service Svc`,
+		`method H of service Svc returns service type`,
 	}
 
 	var p parser
@@ -340,7 +384,7 @@ func TestParserErrors(t *testing.T) {
 		t.Fatalf("unexpected error type: %T", err)
 	}
 	if len(errs) < len(expectedErrors) {
-		t.Errorf("unexpected number of errors: %d", len(errs))
+		t.Errorf("too few parse errors errors: %d/%d", len(errs), len(expectedErrors))
 		t.FailNow()
 	} else {
 		for i, err := range errs[:len(expectedErrors)] {
