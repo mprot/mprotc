@@ -86,6 +86,11 @@ func doGlob(components []string, idx int, rootPath string, fset fileset) error {
 				return err
 			}
 
+			err = doGlob(components, idx+1, rootPath, fset)
+			if err != nil {
+				return err
+			}
+
 			for _, subdir := range subdirs {
 				subdirPath := filepath.Join(rootPath, subdir.Name())
 				err = doGlob(components, idx, subdirPath, fset)
