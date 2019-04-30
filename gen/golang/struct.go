@@ -7,17 +7,22 @@ import (
 
 type structGenerator struct {
 	unwrapUnion bool
+	typeid      bool
 }
 
-func (g *structGenerator) Generate(p gen.Printer, s *schema.Struct, typename typenameFunc) {
-	g.printDecl(p, s.Name, s.Fields, s.Doc, typename)
+func (g *structGenerator) Generate(p gen.Printer, s *schema.Struct, ti *typeinfo) {
+	g.printDecl(p, s.Name, s.Fields, s.Doc, ti)
 	p.Println()
-	g.printEncodeFunc(p, s.Name, s.Fields, typename)
+	g.printEncodeFunc(p, s.Name, s.Fields, ti)
 	p.Println()
-	g.printDecodeFunc(p, s.Name, s.Fields, typename)
+	g.printDecodeFunc(p, s.Name, s.Fields, ti)
+	if g.typeid {
+		p.Println()
+		g.printTypeidFunc(p, s.Name, ti.typeid(schema.DeclType(s)))
+	}
 }
 
-func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.Field, doc []string, typename typenameFunc) {
+func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.Field, doc []string, ti *typeinfo) {
 	var maxNameLen int
 	for _, f := range fields {
 		if len(f.Name) > maxNameLen {
@@ -29,7 +34,7 @@ func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.
 	p.Println(`type `, name, ` struct {`)
 	for _, f := range fields {
 		fname := gen.RPad(f.Name, maxNameLen)
-		ftype := typename(f.Type)
+		ftype := ti.typename(f.Type)
 		if g.unwrapUnion && isUnion(f.Type) {
 			ftype = "interface{} // " + ftype
 		}
@@ -39,7 +44,7 @@ func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.
 	p.Println(`}`)
 }
 
-func (g *structGenerator) printEncodeFunc(p gen.Printer, name string, fields []schema.Field, typename typenameFunc) {
+func (g *structGenerator) printEncodeFunc(p gen.Printer, name string, fields []schema.Field, ti *typeinfo) {
 	p.Println(`// EncodeMsgpack implements the Encoder interface for `, name, `.`)
 	p.Println(`func (o *`, name, `) EncodeMsgpack(w *msgpack.Writer) (err error) {`)
 	p.Println(`	if err = w.WriteMapHeader(`, len(fields), `); err != nil {`)
@@ -50,13 +55,13 @@ func (g *structGenerator) printEncodeFunc(p gen.Printer, name string, fields []s
 		p.Println(`	if err = w.WriteInt64(`, f.Ordinal, `); err != nil {`)
 		p.Println(`		return err`)
 		p.Println(`	}`)
-		g.printFieldEncode(gen.PrefixedPrinter(p, "\t"), "o", f, typename)
+		g.printFieldEncode(gen.PrefixedPrinter(p, "\t"), "o", f, ti)
 	}
 	p.Println(`	return nil`)
 	p.Println(`}`)
 }
 
-func (g *structGenerator) printDecodeFunc(p gen.Printer, name string, fields []schema.Field, typename typenameFunc) {
+func (g *structGenerator) printDecodeFunc(p gen.Printer, name string, fields []schema.Field, ti *typeinfo) {
 	p.Println(`// DecodeMsgpack implements the Decoder interface for `, name, `.`)
 	p.Println(`func (o *`, name, `) DecodeMsgpack(r *msgpack.Reader) error {`)
 	p.Println(`	n, err := r.ReadMapHeader()`)
@@ -71,7 +76,7 @@ func (g *structGenerator) printDecodeFunc(p gen.Printer, name string, fields []s
 	p.Println(`		switch ord {`)
 	for _, f := range fields {
 		p.Println(`		case `, f.Ordinal, `: // `, f.Name)
-		g.printFieldDecode(gen.PrefixedPrinter(p, "\t\t\t"), "o", f, typename)
+		g.printFieldDecode(gen.PrefixedPrinter(p, "\t\t\t"), "o", f, ti)
 	}
 	p.Println(`		default:`)
 	p.Println(`			if err := r.Skip(); err != nil {`)
@@ -83,26 +88,33 @@ func (g *structGenerator) printDecodeFunc(p gen.Printer, name string, fields []s
 	p.Println(`}`)
 }
 
-func (g *structGenerator) printFieldEncode(p gen.Printer, receiver string, field schema.Field, typename typenameFunc) {
+func (g *structGenerator) printTypeidFunc(p gen.Printer, name string, typeid string) {
+	p.Println(`// TypeID returns the type id for `, name, `.`)
+	p.Println(`func (o *`, name, `) TypeID() string {`)
+	p.Println(`	return "`, typeid, `"`)
+	p.Println(`}`)
+}
+
+func (g *structGenerator) printFieldEncode(p gen.Printer, receiver string, field schema.Field, ti *typeinfo) {
 	specifier := receiver + "." + field.Name
 	if g.unwrapUnion && isUnion(field.Type) {
-		specifier = "(" + typename(field.Type) + "{" + specifier + "})"
+		specifier = "(" + ti.typename(field.Type) + "{" + specifier + "})"
 	}
 
 	cp := newCodecFuncPrinter(specifier, field.Type, "")
 	cp.printEncode(p)
 }
 
-func (g *structGenerator) printFieldDecode(p gen.Printer, receiver string, field schema.Field, typename typenameFunc) {
+func (g *structGenerator) printFieldDecode(p gen.Printer, receiver string, field schema.Field, ti *typeinfo) {
 	fieldSpecifier := receiver + "." + field.Name
 	if g.unwrapUnion && isUnion(field.Type) {
-		p.Println(`var u `, typename(field.Type))
+		p.Println(`var u `, ti.typename(field.Type))
 		cp := newCodecFuncPrinter("u", field.Type, "")
-		cp.printDecode(p, typename, false)
+		cp.printDecode(p, ti, false)
 		p.Println(fieldSpecifier, ` = u.Value`)
 	} else {
 		cp := newCodecFuncPrinter(fieldSpecifier, field.Type, "")
-		cp.printDecode(p, typename, false)
+		cp.printDecode(p, ti, false)
 	}
 }
 

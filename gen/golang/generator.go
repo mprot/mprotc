@@ -16,6 +16,7 @@ type Options struct {
 	ImportRoot  string // root path of all schema imports
 	ScopedEnums bool   // scope enumerators?
 	UnwrapUnion bool   // unwrap union types in struct fields?
+	TypeID      bool   // generate TypeID method?
 }
 
 // Generator represents a code generator for the Go programming language.
@@ -34,9 +35,14 @@ func NewGenerator(opts Options) *Generator {
 		importRoot: opts.ImportRoot,
 		enum: enumGenerator{
 			scoped: opts.ScopedEnums,
+			typeid: opts.TypeID,
 		},
 		strct: structGenerator{
 			unwrapUnion: opts.UnwrapUnion,
+			typeid:      opts.TypeID,
+		},
+		union: unionGenerator{
+			typeid: opts.TypeID,
 		},
 	}
 }
@@ -90,7 +96,7 @@ func (g *Generator) generate(p gen.Printer, f *schema.File) {
 	}
 	p.Println(`var _ *msgpack.Writer`)
 
-	typename := newTypenameFunc(importNames)
+	ti := newTypeinfo(importNames)
 	for _, decl := range f.Decls {
 		p.Println()
 
@@ -98,13 +104,13 @@ func (g *Generator) generate(p gen.Printer, f *schema.File) {
 		case *schema.Const:
 			g.cnst.Generate(p, decl)
 		case *schema.Enum:
-			g.enum.Generate(p, decl)
+			g.enum.Generate(p, decl, ti)
 		case *schema.Struct:
-			g.strct.Generate(p, decl, typename)
+			g.strct.Generate(p, decl, ti)
 		case *schema.Union:
-			g.union.Generate(p, decl, typename)
+			g.union.Generate(p, decl, ti)
 		case *schema.Service:
-			g.service.Generate(p, decl, typename)
+			g.service.Generate(p, decl, ti)
 		default:
 			panic(fmt.Sprintf("unsupported declaration type %T", decl))
 		}

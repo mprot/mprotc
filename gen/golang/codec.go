@@ -92,7 +92,7 @@ func (cp *codecFuncPrinter) printEncode(p gen.Printer) {
 	}
 }
 
-func (cp *codecFuncPrinter) printDecode(p gen.Printer, typename typenameFunc, noCopy bool) {
+func (cp *codecFuncPrinter) printDecode(p gen.Printer, ti *typeinfo, noCopy bool) {
 	switch t := cp.vartype.(type) {
 	case *schema.Pointer:
 		p.Println(`if typ, err := r.Peek(); err != nil {`)
@@ -102,14 +102,14 @@ func (cp *codecFuncPrinter) printDecode(p gen.Printer, typename typenameFunc, no
 		p.Println(`	`, cp.varname, ` = nil`)
 		p.Println(`} else {`)
 		p.Println(`	if `, cp.varname, ` == nil {`)
-		p.Println(`		`, cp.varname, ` = new(`, typename(t.Value), `)`)
+		p.Println(`		`, cp.varname, ` = new(`, ti.typename(t.Value), `)`)
 		p.Println(`	}`)
 		deref := codecFuncPrinter{
 			varname:    "*" + cp.varname,
 			vartype:    t.Value,
 			returnStmt: cp.returnStmt,
 		}
-		deref.printDecode(gen.PrefixedPrinter(p, "\t"), typename, noCopy)
+		deref.printDecode(gen.PrefixedPrinter(p, "\t"), ti, noCopy)
 		p.Println(`}`)
 
 	case *schema.Array:
@@ -128,7 +128,7 @@ func (cp *codecFuncPrinter) printDecode(p gen.Printer, typename typenameFunc, no
 		}
 		if t.Size <= 0 {
 			p.Println(`if cap(`, cp.varname, `) < `, length, ` {`)
-			p.Println(`	`, cp.varname, ` = make([]`, typename(t.Value), `, `, length, `)`)
+			p.Println(`	`, cp.varname, ` = make([]`, ti.typename(t.Value), `, `, length, `)`)
 			p.Println(`} else {`)
 			p.Println(`	`, cp.varname, ` = `, cp.varname, `[:`, length, `]`)
 			p.Println(`}`)
@@ -139,7 +139,7 @@ func (cp *codecFuncPrinter) printDecode(p gen.Printer, typename typenameFunc, no
 			vartype:    t.Value,
 			returnStmt: cp.returnStmt,
 		}
-		elem.printDecode(gen.PrefixedPrinter(p, "\t"), typename, noCopy)
+		elem.printDecode(gen.PrefixedPrinter(p, "\t"), ti, noCopy)
 		p.Println(`}`)
 
 	case *schema.Map:
@@ -149,23 +149,23 @@ func (cp *codecFuncPrinter) printDecode(p gen.Printer, typename typenameFunc, no
 		p.Println(`	return `, cp.returnStmt)
 		p.Println(`}`)
 		p.Println(`if `, cp.varname, ` == nil {`)
-		p.Println(`	`, cp.varname, ` = make(map[`, typename(t.Key), `]`, typename(t.Value), `, `, length, `)`)
+		p.Println(`	`, cp.varname, ` = make(map[`, ti.typename(t.Key), `]`, ti.typename(t.Value), `, `, length, `)`)
 		p.Println(`}`)
 		p.Println(`for i := 0; i < `, length, `; i++ {`)
-		p.Println(`	var k `, typename(t.Key))
+		p.Println(`	var k `, ti.typename(t.Key))
 		key := codecFuncPrinter{
 			varname:    "k",
 			vartype:    t.Key,
 			returnStmt: cp.returnStmt,
 		}
-		key.printDecode(gen.PrefixedPrinter(p, "\t"), typename, noCopy)
-		p.Println(`	var v `, typename(t.Value))
+		key.printDecode(gen.PrefixedPrinter(p, "\t"), ti, noCopy)
+		p.Println(`	var v `, ti.typename(t.Value))
 		val := codecFuncPrinter{
 			varname:    "v",
 			vartype:    t.Value,
 			returnStmt: cp.returnStmt,
 		}
-		val.printDecode(gen.PrefixedPrinter(p, "\t"), typename, noCopy)
+		val.printDecode(gen.PrefixedPrinter(p, "\t"), ti, noCopy)
 		p.Println(`	`, cp.varname, `[k] = v`)
 		p.Println(`}`)
 

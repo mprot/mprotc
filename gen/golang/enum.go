@@ -9,9 +9,10 @@ import (
 
 type enumGenerator struct {
 	scoped bool
+	typeid bool
 }
 
-func (g *enumGenerator) Generate(p gen.Printer, e *schema.Enum) {
+func (g *enumGenerator) Generate(p gen.Printer, e *schema.Enum, ti *typeinfo) {
 	intType := "int"
 	for _, e := range e.Enumerators {
 		if e.Value < math.MinInt32 || e.Value > math.MaxInt32 {
@@ -25,6 +26,10 @@ func (g *enumGenerator) Generate(p gen.Printer, e *schema.Enum) {
 	g.printEncodeFunc(p, e.Name, intType)
 	p.Println()
 	g.printDecodeFunc(p, e.Name, intType)
+	if g.typeid {
+		p.Println()
+		g.printTypeidFunc(p, e.Name, ti.typeid(schema.DeclType(e)))
+	}
 }
 
 func (g *enumGenerator) printDecl(p gen.Printer, name string, enumerators []schema.Enumerator, intType string, doc []string) {
@@ -73,5 +78,12 @@ func (g *enumGenerator) printDecodeFunc(p gen.Printer, name string, intType stri
 	p.Println(`	}`)
 	p.Println(`	*o = `, name, `(val)`)
 	p.Println(`	return nil`)
+	p.Println(`}`)
+}
+
+func (g *enumGenerator) printTypeidFunc(p gen.Printer, name string, typeid string) {
+	p.Println(`// TypeID returns the type id for `, name, `.`)
+	p.Println(`func (o `, name, `) TypeID() string {`)
+	p.Println(`	return "`, typeid, `"`)
 	p.Println(`}`)
 }

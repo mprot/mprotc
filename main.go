@@ -17,6 +17,7 @@ var cli = commands{
 			opts.AddString("--import-root", "", "Import root path for all schema imports.")
 			opts.AddBool("--scoped-enums", false, "Scope the enumerators of the generated enums.")
 			opts.AddBool("--unwrap-union", false, "Unwrap union types of the generated struct fields.")
+			opts.AddBool("--typeid", false, "Generate methods for retrieving a type id.")
 		},
 
 		generator: func(opts *opts.Opts) generator {
@@ -28,6 +29,7 @@ var cli = commands{
 				ImportRoot:  importRoot,
 				ScopedEnums: opts.Bool("scoped-enums"),
 				UnwrapUnion: opts.Bool("unwrap-union"),
+				TypeID:      opts.Bool("typeid"),
 			})
 		},
 	},

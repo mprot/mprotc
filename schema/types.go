@@ -178,6 +178,8 @@ func DeclType(decl Decl) *DefinedType {
 		name = decl.Name
 	case *Union:
 		name = decl.Name
+	case *Service:
+		name = decl.Name
 	default:
 		return nil
 	}

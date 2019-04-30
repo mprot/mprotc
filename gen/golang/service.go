@@ -10,27 +10,27 @@ import (
 
 type serviceGenerator struct{}
 
-func (g *serviceGenerator) Generate(p gen.Printer, s *schema.Service, typename typenameFunc) {
-	g.printDecl(p, s.Name, s.Methods, s.Doc, typename)
+func (g *serviceGenerator) Generate(p gen.Printer, s *schema.Service, ti *typeinfo) {
+	g.printDecl(p, s.Name, s.Methods, s.Doc, ti)
 	p.Println()
-	g.printRegisterFunc(p, s.Name, s.Methods, typename)
+	g.printRegisterFunc(p, s.Name, s.Methods, ti)
 	p.Println()
-	g.printClient(p, s.Name, s.Methods, typename)
+	g.printClient(p, s.Name, s.Methods, ti)
 }
 
-func (g *serviceGenerator) printDecl(p gen.Printer, name string, methods []schema.Method, doc []string, typename typenameFunc) {
+func (g *serviceGenerator) printDecl(p gen.Printer, name string, methods []schema.Method, doc []string, ti *typeinfo) {
 	printDoc(p, doc, name+" service.")
 	p.Println(`type `, name, ` interface {`)
 	for _, m := range methods {
 		callTypes := make([]string, 0, 1+len(m.Args))
 		callTypes = append(callTypes, "context.Context")
 		for _, arg := range m.Args {
-			callTypes = append(callTypes, typename(arg))
+			callTypes = append(callTypes, ti.typename(arg))
 		}
 
 		returnType := "error"
 		if m.Return != nil {
-			returnType = "(" + typename(m.Return) + ", error)"
+			returnType = "(" + ti.typename(m.Return) + ", error)"
 		}
 
 		printDoc(gen.PrefixedPrinter(p, "\t"), m.Doc, "")
@@ -39,7 +39,7 @@ func (g *serviceGenerator) printDecl(p gen.Printer, name string, methods []schem
 	p.Println(`}`)
 }
 
-func (g *serviceGenerator) printRegisterFunc(p gen.Printer, name string, methods []schema.Method, typename typenameFunc) {
+func (g *serviceGenerator) printRegisterFunc(p gen.Printer, name string, methods []schema.Method, ti *typeinfo) {
 	funcName := "Register" + gen.TitleFirstWord(name)
 
 	p.Println(`// `, funcName, ` register`)
@@ -60,10 +60,10 @@ func (g *serviceGenerator) printRegisterFunc(p gen.Printer, name string, methods
 			argNames = append(argNames, "ctx")
 			for i, argType := range m.Args {
 				arg := "arg" + strconv.FormatInt(int64(i), 10)
-				p.Println(`					var `, arg, ` `, typename(argType))
+				p.Println(`					var `, arg, ` `, ti.typename(argType))
 
 				argvar := newCodecFuncPrinter(arg, argType, "nil")
-				argvar.printDecode(gen.PrefixedPrinter(p, "\t\t\t\t\t"), typename, true)
+				argvar.printDecode(gen.PrefixedPrinter(p, "\t\t\t\t\t"), ti, true)
 
 				argNames = append(argNames, arg)
 			}
@@ -93,7 +93,7 @@ func (g *serviceGenerator) printRegisterFunc(p gen.Printer, name string, methods
 	p.Println(`}`)
 }
 
-func (g *serviceGenerator) printClient(p gen.Printer, name string, methods []schema.Method, typename typenameFunc) {
+func (g *serviceGenerator) printClient(p gen.Printer, name string, methods []schema.Method, ti *typeinfo) {
 	clientName := gen.TitleFirstWord(name) + "Client"
 
 	p.Println(`// `, clientName, ` defines the client API for `, name, `.`)
@@ -112,7 +112,7 @@ func (g *serviceGenerator) printClient(p gen.Printer, name string, methods []sch
 			args := make([]string, 0, len(m.Args))
 			for i, argType := range m.Args {
 				arg := "arg" + strconv.FormatInt(int64(i), 10)
-				params = append(params, arg+" "+typename(argType))
+				params = append(params, arg+" "+ti.typename(argType))
 				args = append(args, arg)
 			}
 
@@ -120,7 +120,7 @@ func (g *serviceGenerator) printClient(p gen.Printer, name string, methods []sch
 			returnStmt := ""
 			errorReturnStmt := "err"
 			if m.Return != nil {
-				returnType = "(res " + typename(m.Return) + ", err error)"
+				returnType = "(res " + ti.typename(m.Return) + ", err error)"
 				returnStmt = "res"
 				errorReturnStmt = "res, err"
 			}
@@ -151,7 +151,7 @@ func (g *serviceGenerator) printClient(p gen.Printer, name string, methods []sch
 			} else {
 				p.Println(`	r := msgpack.NewReaderBytes(resp.Body)`)
 				resp := newCodecFuncPrinter("res", m.Return, "res")
-				resp.printDecode(gen.PrefixedPrinter(p, "\t"), typename, true)
+				resp.printDecode(gen.PrefixedPrinter(p, "\t"), ti, true)
 				p.Println(`	return res, nil`)
 			}
 			p.Println(`}`)
