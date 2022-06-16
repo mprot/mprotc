@@ -55,7 +55,7 @@ func TestParse(t *testing.T) {
 		X1   external1.X        ` + "`" + `26` + "`" + `
 		X2   ext.X              ` + "`" + `27` + "`" + `
 	}
-	
+
 	; // empty statement
 
 	// my enum
@@ -370,8 +370,8 @@ func TestParserErrors(t *testing.T) {
 		`union V does not contain a branch`,
 		`union branch U in union W`,
 		`duplicate method F in service Svc`,
-		`service argument in method G of service Svc`,
-		`method H of service Svc returns service type`,
+		`argument in method G of service Svc must not be a service`,
+		`method H of service Svc must not return a service type`,
 	}
 
 	var p parser

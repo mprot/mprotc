@@ -46,7 +46,7 @@ func (g *structGenerator) printDecl(p gen.Printer, name string, fields []schema.
 
 func (g *structGenerator) printEncodeFunc(p gen.Printer, name string, fields []schema.Field, ti *typeinfo) {
 	p.Println(`// EncodeMsgpack implements the Encoder interface for `, name, `.`)
-	p.Println(`func (o *`, name, `) EncodeMsgpack(w *msgpack.Writer) (err error) {`)
+	p.Println(`func (o `, name, `) EncodeMsgpack(w *msgpack.Writer) (err error) {`)
 	p.Println(`	if err = w.WriteMapHeader(`, len(fields), `); err != nil {`)
 	p.Println(`		return err`)
 	p.Println(`	}`)

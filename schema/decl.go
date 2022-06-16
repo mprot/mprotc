@@ -236,11 +236,11 @@ func (s *Service) validate(r errorReporter) {
 
 		for _, arg := range m.Args {
 			if isService(arg) {
-				r.errorf("service argument in method %s of service %s", m.Name, s.Name)
+				r.errorf("argument in method %s of service %s must not be a service", m.Name, s.Name)
 			}
 		}
 		if isService(m.Return) {
-			r.errorf("method %s of service %s returns service type", m.Name, s.Name)
+			r.errorf("method %s of service %s must not return a service type", m.Name, s.Name)
 		}
 
 		methods[m.Name] = struct{}{}

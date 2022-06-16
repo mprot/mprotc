@@ -17,11 +17,8 @@ func Parse(rootDir string, globPatterns []string) (Schema, error) {
 	}
 
 	s := make(Schema, 0, fset.size())
-
-	var (
-		p    parser
-		errs ErrorList
-	)
+	p := parser{}
+	errs := ErrorList{}
 	for _, filename := range fset.filenames() {
 		f, err := p.ParseFile(filename)
 		if err != nil {
