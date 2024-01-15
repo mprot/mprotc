@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mprot/mprotc/gen"
-	"github.com/mprot/mprotc/schema"
+	"github.com/mprot/mprotc/internal/gen"
+	"github.com/mprot/mprotc/internal/schema"
 )
 
 // Options holds all the options for the JavaScript language generator.

@@ -1,4 +1,4 @@
-package opts
+package cli
 
 import (
 	"flag"
@@ -20,7 +20,7 @@ type Opts struct {
 }
 
 // New creates new options.
-func New() *Opts {
+func NewOpts() *Opts {
 	return &Opts{
 		opts: make(map[string]option),
 	}

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/mprot/mprotc/schema"
+	"github.com/mprot/mprotc/internal/schema"
 )
 
 type codecContext struct {

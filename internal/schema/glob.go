@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -32,7 +31,7 @@ func glob(root string, patterns []string) (fileset, error) {
 	fset := make(fileset)
 	for _, pattern := range patterns {
 		if filepath.Separator != '/' {
-			pattern = strings.Replace(pattern, string(filepath.Separator), "/", -1)
+			pattern = strings.ReplaceAll(pattern, string(filepath.Separator), "/")
 		}
 		components := strings.Split(pattern, "/")
 		if err := doGlob(components, 0, root, fset); err != nil {
@@ -186,25 +185,25 @@ func globRegexp(s string) (*regexp.Regexp, error) {
 	return res, nil
 }
 
-func readSubdirs(dirname string) ([]os.FileInfo, error) {
-	return readdir(dirname, func(info os.FileInfo) bool {
-		return info.IsDir()
+func readSubdirs(dirname string) ([]os.DirEntry, error) {
+	return readdir(dirname, func(entry os.DirEntry) bool {
+		return entry.IsDir()
 	})
 }
 
-func readFiles(dirname string) ([]os.FileInfo, error) {
-	return readdir(dirname, func(info os.FileInfo) bool {
+func readFiles(dirname string) ([]os.DirEntry, error) {
+	return readdir(dirname, func(info os.DirEntry) bool {
 		return !info.IsDir()
 	})
 }
 
-func readdir(dirname string, filter func(os.FileInfo) bool) ([]os.FileInfo, error) {
-	entries, err := ioutil.ReadDir(dirname)
+func readdir(dirname string, filter func(os.DirEntry) bool) ([]os.DirEntry, error) {
+	entries, err := os.ReadDir(dirname)
 	if err != nil {
 		return nil, err
 	}
 
-	res := make([]os.FileInfo, 0, len(entries))
+	res := make([]os.DirEntry, 0, len(entries))
 	for _, entry := range entries {
 		if filter(entry) {
 			res = append(res, entry)

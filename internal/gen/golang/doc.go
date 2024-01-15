@@ -1,9 +1,9 @@
-package js
+package golang
 
 import (
 	"strings"
 
-	"github.com/mprot/mprotc/gen"
+	"github.com/mprot/mprotc/internal/gen"
 )
 
 func printDoc(p gen.Printer, doc []string, fallback string) {

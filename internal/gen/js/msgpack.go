@@ -3,8 +3,8 @@ package js
 import (
 	"sort"
 
-	"github.com/mprot/mprotc/gen"
-	"github.com/mprot/mprotc/schema"
+	"github.com/mprot/mprotc/internal/gen"
+	"github.com/mprot/mprotc/internal/schema"
 )
 
 func msgpackImports(f *schema.File) []string {

@@ -5,42 +5,37 @@ import (
 	"io"
 	"os"
 
-	"github.com/mprot/mprotc/gen/golang"
-	"github.com/mprot/mprotc/gen/js"
-	"github.com/mprot/mprotc/opts"
-	"github.com/mprot/mprotc/schema"
+	"github.com/mprot/mprotc/generator"
+	"github.com/mprot/mprotc/internal/cli"
+	"github.com/mprot/mprotc/internal/schema"
 )
 
-var cli = commands{
-	"go": command{
-		options: func(opts *opts.Opts) {
+var commands = cli.Commands{
+	"go": cli.Command{
+		Options: func(opts *cli.Opts) {
 			opts.AddString("--import-root", "", "Import root path for all schema imports.")
 			opts.AddBool("--scoped-enums", false, "Scope the enumerators of the generated enums.")
-			opts.AddBool("--unwrap-union", false, "Unwrap union types of the generated struct fields.")
+			opts.AddBool("--unwrap-unions", false, "Unwrap union types of the generated struct fields.")
 			opts.AddBool("--typeid", false, "Generate methods for retrieving a type id.")
 		},
 
-		generator: func(opts *opts.Opts) generator {
-			importRoot := opts.String("import-root")
-			if importRoot == "" {
-				importRoot = opts.String("out")
-			}
-			return golang.NewGenerator(golang.Options{
-				ImportRoot:  importRoot,
-				ScopedEnums: opts.Bool("scoped-enums"),
-				UnwrapUnion: opts.Bool("unwrap-union"),
-				TypeID:      opts.Bool("typeid"),
+		Generator: func(opts *cli.Opts) *generator.Generator {
+			return generator.NewGolang(generator.GolangOptions{
+				ImportRoot:   opts.String("import-root"),
+				ScopedEnums:  opts.Bool("scoped-enums"),
+				UnwrapUnions: opts.Bool("unwrap-union"),
+				TypeID:       opts.Bool("typeid"),
 			})
 		},
 	},
-	"js": command{
-		options: func(opts *opts.Opts) {
+	"js": cli.Command{
+		Options: func(opts *cli.Opts) {
 			opts.AddBool("--typedecls", false, "Generate type declarations in a separate .d.ts file.")
 		},
 
-		generator: func(opts *opts.Opts) generator {
-			return js.NewGenerator(js.Options{
-				TypeDecls: opts.Bool("typedecls"),
+		Generator: func(opts *cli.Opts) *generator.Generator {
+			return generator.NewJavascript(generator.JavascriptOptions{
+				TypeDeclarations: opts.Bool("typedecls"),
 			})
 		},
 	},
@@ -48,11 +43,11 @@ var cli = commands{
 
 func main() {
 	if len(os.Args) < 2 {
-		cli.Exec("help", nil)
+		commands.Exec("help", nil)
 		os.Exit(0)
 	}
 
-	err := cli.Exec(os.Args[1], os.Args[2:])
+	err := commands.Exec(os.Args[1], os.Args[2:])
 	if err != nil {
 		printErr(os.Stderr, err)
 		os.Exit(1)

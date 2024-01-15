@@ -1,8 +1,8 @@
 package js
 
 import (
-	"github.com/mprot/mprotc/gen"
-	"github.com/mprot/mprotc/schema"
+	"github.com/mprot/mprotc/internal/gen"
+	"github.com/mprot/mprotc/internal/schema"
 )
 
 type enumGenerator struct {

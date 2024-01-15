@@ -3,6 +3,7 @@ package gen
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // RPad transforms the given string to a string with a minimum length of width.
@@ -35,7 +36,12 @@ func SnakeCase(s string) string {
 // TitleFirstWord transforms the given string to a string which first word is
 // title cased.
 func TitleFirstWord(s string) string {
-	return transformFirstWord(s, strings.Title)
+	return transformFirstWord(s, func(s string) string {
+		if r, n := utf8.DecodeRuneInString(s); r != utf8.RuneError {
+			s = string(unicode.ToTitle(r)) + s[n:]
+		}
+		return s
+	})
 }
 
 // LowerFirstWord transforms the given string to a string which first word is
@@ -45,15 +51,14 @@ func LowerFirstWord(s string) string {
 }
 
 func transformFirstWord(s string, transform func(string) string) string {
-	res := ""
+	var sb strings.Builder
 	iterWords(s, func(w string) {
-		if res == "" {
-			res = transform(w)
-		} else {
-			res += w
+		if sb.Len() != 0 {
+			w = transform(w)
 		}
+		sb.WriteString(w)
 	})
-	return res
+	return sb.String()
 }
 
 func iterWords(s string, iter func(string)) {

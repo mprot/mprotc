@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"flag"
@@ -6,36 +6,50 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mprot/mprotc/opts"
+	"github.com/mprot/mprotc/generator"
 )
 
 const binName = "mprotc"
 
-type command struct {
-	options   func(opts *opts.Opts)
-	generator func(opts *opts.Opts) generator
+type Command struct {
+	Options   func(opts *Opts)
+	Generator func(opts *Opts) *generator.Generator
 }
 
-func (c *command) exec(opts *opts.Opts, globPatterns []string) error {
-	gen := newCodeGenerator(c.generator(opts), generatorOptions{
-		rootPath:   opts.String("root"),
-		outputPath: opts.String("out"),
-		deprecated: opts.Bool("deprecated"),
-		dryRun:     opts.Bool("dryrun"),
+func (c *Command) exec(opts *Opts, globPatterns []string) error {
+	dryRun := opts.Bool("dryrun")
+
+	gen := c.Generator(opts)
+	err := gen.Generate(generator.Options{
+		RootDirectory:    opts.String("root"),
+		GlobPatterns:     globPatterns,
+		RemoveDeprecated: !opts.Bool("deprecated"),
+		OutputDirectory:  opts.String("out"),
 	})
-	return gen.Generate(globPatterns)
+	if err != nil {
+		return err
+	}
+
+	if dryRun {
+		gen.IterateFiles(func(filename string) {
+			fmt.Fprintln(os.Stdout, filename)
+		})
+		return nil
+	}
+
+	return gen.Dump()
 }
 
-func (c *command) registerOpts(opts *opts.Opts) {
-	if c.options != nil {
-		c.options(opts)
+func (c *Command) registerOpts(opts *Opts) {
+	if c.Options != nil {
+		c.Options(opts)
 	}
 }
 
-type commands map[string]command // language => command
+type Commands map[string]Command // language => command
 
-func (c commands) Exec(language string, args []string) error {
-	opts := opts.New()
+func (c Commands) Exec(language string, args []string) error {
+	opts := NewOpts()
 	opts.AddString("--root <path>", ".", "Specify the root path of the mprot schema files.")
 	opts.AddString("--out <path>", ".", "Specify the output path for the generated code.")
 	opts.AddBool("--deprecated", false, "Include the deprecated fields in the generated code.")
@@ -75,7 +89,7 @@ func (c commands) Exec(language string, args []string) error {
 	return cmd.exec(opts, fset.Args())
 }
 
-func (c commands) printHelp(language string, opts *opts.Opts) {
+func (c Commands) printHelp(language string, opts *Opts) {
 	w := os.Stderr
 
 	fmt.Fprintln(w, `Usage:`)
@@ -96,7 +110,7 @@ func (c commands) printHelp(language string, opts *opts.Opts) {
 	fmt.Fprintln(w, ` `, strings.Join(c.supportedLangs(), ", "))
 }
 
-func (c commands) supportedLangs() []string {
+func (c Commands) supportedLangs() []string {
 	langs := make([]string, 0, len(c))
 	for lang := range c {
 		langs = append(langs, lang)

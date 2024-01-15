@@ -7,16 +7,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mprot/mprotc/gen"
-	"github.com/mprot/mprotc/schema"
+	"github.com/mprot/mprotc/internal/gen"
+	"github.com/mprot/mprotc/internal/schema"
 )
 
 // Options holds all the options for the Go language generator.
 type Options struct {
-	ImportRoot  string // root path of all schema imports
-	ScopedEnums bool   // scope enumerators?
-	UnwrapUnion bool   // unwrap union types in struct fields?
-	TypeID      bool   // generate TypeID method?
+	ImportRoot   string // root path of all schema imports
+	ScopedEnums  bool   // scope enumerators?
+	UnwrapUnions bool   // unwrap union types in struct fields?
+	TypeID       bool   // generate TypeID method?
 }
 
 // Generator represents a code generator for the Go programming language.
@@ -38,7 +38,7 @@ func NewGenerator(opts Options) *Generator {
 			typeid: opts.TypeID,
 		},
 		strct: structGenerator{
-			unwrapUnion: opts.UnwrapUnion,
+			unwrapUnion: opts.UnwrapUnions,
 			typeid:      opts.TypeID,
 		},
 		union: unionGenerator{
@@ -137,7 +137,7 @@ func (g *Generator) goImports(f *schema.File) ([]schema.Import, map[string]strin
 		}
 
 		goimp.Name = path.Base(goimp.Path)
-		goimp.Name = strings.Replace(goimp.Name, "-", "_", -1)
+		goimp.Name = strings.ReplaceAll(goimp.Name, "-", "_")
 
 		imports = append(imports, goimp)
 		importNames[imp.Name] = goimp.Name
@@ -151,7 +151,7 @@ func normalizePath(path string) string {
 	if filepath.Separator == '/' {
 		return path
 	}
-	return strings.Replace(path, string(filepath.Separator), "/", -1)
+	return strings.ReplaceAll(path, string(filepath.Separator), "/")
 }
 
 func containsService(f *schema.File) bool {
