@@ -24,7 +24,7 @@ Description:
 ```
 
 ## Supported Languages
-* [Golang](gen/golang/README.md):
+* [Golang](internal/gen/golang/README.md):
 ```
 mprotc go [options] [schema-file ...]
 
@@ -38,7 +38,7 @@ Additional Options:
       Unwrap the union types of the generated struct fields, i.e. use an empty interface as the field type.
       The default is false.
 ```
-* [JavaScript/TypeScript](gen/js/README.md):
+* [JavaScript/TypeScript](internal/gen/js/README.md):
 ```
 mprotc js [options] [schema-file ...]
 
