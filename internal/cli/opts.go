@@ -8,7 +8,7 @@ import (
 )
 
 type option struct {
-	val   interface{}
+	val   any
 	usage string
 	help  string
 }
@@ -76,22 +76,31 @@ func (o *Opts) AddString(usage string, val string, help string) {
 // Bool returns the value of the boolean option with the given name. If
 // this option is not boolean, it will panic.
 func (o *Opts) Bool(name string) bool {
-	return *o.get(name, false).(*bool)
+	if v := o.get(name); v != nil {
+		return *v.(*bool)
+	}
+	return false
 }
 
 // Int returns the value of the integer option with the given name. If
 // this option is not an integer, it will panic.
 func (o *Opts) Int(name string) int {
-	return *o.get(name, 0).(*int)
+	if v := o.get(name); v != nil {
+		return *v.(*int)
+	}
+	return 0
 }
 
 // String returns the value of the string option with the given name. If
 // this option is not a string, it will panic.
 func (o *Opts) String(name string) string {
-	return *o.get(name, "").(*string)
+	if v := o.get(name); v != nil {
+		return *v.(*string)
+	}
+	return ""
 }
 
-func (o *Opts) add(val interface{}, usage string, help string) {
+func (o *Opts) add(val any, usage string, help string) {
 	usage = "--" + strings.TrimLeft(usage, "-")
 	name := usage[2:]
 	if idx := strings.IndexFunc(name, unicode.IsSpace); idx >= 0 {
@@ -109,10 +118,9 @@ func (o *Opts) add(val interface{}, usage string, help string) {
 	o.names = append(o.names, name)
 }
 
-func (o *Opts) get(name string, defaultVal interface{}) interface{} {
-	opt, has := o.opts[name]
-	if !has {
-		return defaultVal
+func (o *Opts) get(name string) any {
+	if opt, has := o.opts[name]; has {
+		return opt.val
 	}
-	return opt.val
+	return nil
 }

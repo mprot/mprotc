@@ -53,7 +53,7 @@ func LowerFirstWord(s string) string {
 func transformFirstWord(s string, transform func(string) string) string {
 	var sb strings.Builder
 	iterWords(s, func(w string) {
-		if sb.Len() != 0 {
+		if sb.Len() == 0 {
 			w = transform(w)
 		}
 		sb.WriteString(w)
